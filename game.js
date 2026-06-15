@@ -21,6 +21,11 @@
       fly: document.getElementById('scene-fly'),
       mama: document.getElementById('scene-mama'),
     },
+    addWordModal:   document.getElementById('add-word-modal'),
+    addWordInput:   document.getElementById('add-word-input'),
+    addWordConfirm: document.getElementById('add-word-confirm'),
+    addWordCancel:  document.getElementById('add-word-cancel'),
+    addWordError:   document.getElementById('add-word-error'),
   };
 
   const CELEBRATION_INFO = {
@@ -33,7 +38,7 @@
   const FRUITS = ['mango', 'mango', 'mango', 'mango', 'banana', 'fig'];
 
   let game = null;
-  let phase = 'start'; // 'start' | 'playing' | 'celebrating'
+  let phase = 'start'; // 'start' | 'playing' | 'celebrating' | 'adding-word'
   let muted = false;
   let moodTimer = null;
 
@@ -288,6 +293,42 @@
     startWord();
   }
 
+  /* ---------- add-word modal ---------- */
+
+  function openAddWordModal() {
+    phase = 'adding-word';
+    el.addWordInput.value = '';
+    el.addWordError.hidden = true;
+    el.addWordModal.hidden = false;
+    el.addWordInput.focus();
+  }
+
+  function closeAddWordModal() {
+    el.addWordModal.hidden = true;
+    phase = 'playing';
+  }
+
+  function confirmAddWord() {
+    const word = el.addWordInput.value.trim().toUpperCase();
+    if (!word || !/^[A-Z]+$/.test(word)) {
+      el.addWordError.textContent = 'Only letters please!';
+      el.addWordError.hidden = false;
+      return;
+    }
+    game.queue[game.wordIndex] = word;
+    game.letterIndex = 0;
+    if (!game.allWords.includes(word)) game.allWords.push(word);
+    closeAddWordModal();
+    startWord();
+  }
+
+  el.addWordConfirm.addEventListener('click', confirmAddWord);
+  el.addWordCancel.addEventListener('click', closeAddWordModal);
+  el.addWordInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); confirmAddWord(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeAddWordModal(); }
+  });
+
   /* ---------- input ---------- */
 
   function begin() {
@@ -305,6 +346,7 @@
       return;
     }
     if (phase !== 'playing') return;
+    if (e.key === '+') { openAddWordModal(); return; }
     const ev = L.inputLetter(game, e.key);
     if (ev.type === 'correct') handleCorrect(ev);
     else if (ev.type === 'incorrect') handleIncorrect();

@@ -347,6 +347,20 @@
   </svg>
 </div>
 
+<!-- ======= add-word modal ======= -->
+<div id="add-word-modal" class="overlay" hidden>
+  <div id="add-word-card">
+    <label for="add-word-input">Add a word for Spellaluna to spell:</label>
+    <input id="add-word-input" type="text" maxlength="20"
+           autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
+    <div id="add-word-error" hidden></div>
+    <div id="add-word-buttons">
+      <button id="add-word-confirm">Add word</button>
+      <button id="add-word-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script src="logic.js"></script>
 <script src="game.js"></script>
 </body>
