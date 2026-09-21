@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spellasaurus</title>
+<link rel="stylesheet" href="../../engine/engine.css">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+
+<!-- ======= shared art (referenced everywhere via <use>) =======
+     Every dinosaur is drawn in three pieces so scenes can articulate them:
+       #bronto-body  — torso + legs, origin between the feet, facing right
+       #bronto-neck  — neck + head, origin at the SHOULDER pivot
+       #bronto-tail  — tail, origin at the HIP pivot
+     A scene places the pieces at these fixed local offsets (see theme.css .dino):
+       neck: translate(58, -148)   tail: translate(-82, -126)
+     #bronto-proto glues all three together for static art. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+
+    <!-- one leg: fill is inherited so callers can shade the far pair -->
+    <g id="dino-leg">
+      <path d="M -17,-118 L 17,-118 L 15,-13 Q 15,-2 0,-2 Q -15,-2 -15,-13 Z"/>
+      <ellipse cx="0" cy="-3" rx="18" ry="8" fill="var(--dino-foot, #46603f)"/>
+    </g>
+
+    <g id="bronto-body">
+      <!-- far legs, shaded back -->
+      <g fill="var(--dino-shade, #5b8a63)">
+        <use href="#dino-leg" transform="translate(-28,0) scale(0.88)"/>
+        <use href="#dino-leg" transform="translate(64,0) scale(0.88)"/>
+      </g>
+      <!-- torso -->
+      <ellipse cx="0" cy="-134" rx="92" ry="54" fill="var(--dino-body, #7bb37f)"/>
+      <!-- humped back -->
+      <path d="M -90,-146 Q -10,-204 90,-144 Q 0,-168 -90,-146 Z" fill="var(--dino-back, #5f9268)"/>
+      <ellipse cx="-4" cy="-112" rx="66" ry="30" fill="var(--dino-belly, #d7ebc6)"/>
+      <!-- near legs -->
+      <g fill="var(--dino-body, #7bb37f)">
+        <use href="#dino-leg" transform="translate(-64,0)"/>
+        <use href="#dino-leg" transform="translate(34,0)"/>
+      </g>
+    </g>
+
+    <g id="bronto-tail" transform="translate(0,-2)">
+      <path d="M 8,-38 C -30,-30 -66,-14 -96,2 C -140,26 -180,46 -208,56
+               C -184,62 -140,56 -96,44 C -60,34 -24,28 8,22 Z"
+        fill="var(--dino-body, #7bb37f)"/>
+      <path d="M 2,-26 C -36,-16 -84,6 -130,30" stroke="var(--dino-back, #5f9268)"
+        stroke-width="6" fill="none" stroke-linecap="round" opacity="0.5"/>
+    </g>
+
+    <g id="bronto-neck">
+      <!-- neck sweeping up and to the right from the shoulder -->
+      <path d="M -22,6 C -28,-58 -6,-130 44,-186 C 60,-204 84,-218 104,-216
+               C 116,-214 118,-198 106,-190 C 74,-174 40,-138 22,-94 C 10,-62 8,-22 14,8 Z"
+        fill="var(--dino-body, #7bb37f)"/>
+      <path d="M -14,4 C -18,-56 2,-124 50,-178" stroke="var(--dino-belly, #d7ebc6)"
+        stroke-width="9" fill="none" stroke-linecap="round" opacity="0.32"/>
+      <!-- head -->
+      <ellipse cx="124" cy="-206" rx="38" ry="27" fill="var(--dino-body, #7bb37f)"/>
+      <path d="M 96,-224 Q 124,-240 150,-222 Q 124,-230 96,-224 Z" fill="var(--dino-back, #5f9268)"/>
+      <ellipse cx="148" cy="-198" rx="17" ry="13" fill="var(--dino-body, #7bb37f)"/>
+      <circle cx="158" cy="-204" r="2.6" fill="#3d5c3f"/>
+      <!-- eyes: open -->
+      <g style="display: var(--eyes-open, block)">
+        <circle cx="130" cy="-216" r="7.5" fill="#25301f"/>
+        <circle cx="132" cy="-218" r="2.6" fill="#fff"/>
+      </g>
+      <!-- eyes: happy (closed arc) -->
+      <g style="display: var(--eyes-happy, none)">
+        <path d="M 122,-214 Q 130,-222 138,-214" stroke="#25301f" stroke-width="3.2"
+          stroke-linecap="round" fill="none"/>
+      </g>
+      <!-- mouths -->
+      <path style="display: var(--mouth-smile, block)" d="M 140,-190 Q 150,-183 160,-190"
+        stroke="#3d5c3f" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+      <g style="display: var(--mouth-munch, none)">
+        <ellipse cx="150" cy="-188" rx="12" ry="9" fill="#5c3030"/>
+        <ellipse cx="150" cy="-185" rx="7" ry="4" fill="#e0707f"/>
+      </g>
+      <g style="display: var(--mouth-yuck, none)">
+        <path d="M 136,-190 Q 143,-196 150,-190 Q 157,-184 164,-190"
+          stroke="#3d5c3f" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+        <ellipse cx="152" cy="-181" rx="5" ry="7" fill="#e0707f"/>
+      </g>
+    </g>
+
+    <!-- the whole dinosaur in one piece, for static art -->
+    <g id="bronto-proto">
+      <use href="#bronto-tail" transform="translate(-82,-126)"/>
+      <use href="#bronto-body"/>
+      <use href="#bronto-neck" transform="translate(58,-148)"/>
+    </g>
+
+    <!-- a tasty star-shaped leaf -->
+    <g id="leaf-star">
+      <line x1="0" y1="14" x2="2" y2="24" stroke="#7a5a2e" stroke-width="3" stroke-linecap="round"/>
+      <path d="M 0,-21 L 6,-6.4 L 21,-6.4 L 8.8,2.9 L 12.8,17.6 L 0,8.8 L -12.8,17.6
+               L -8.8,2.9 L -21,-6.4 L -6,-6.4 Z" fill="#6fae4b"/>
+      <path d="M 0,-14 L 0,6" stroke="#a5d477" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M 0,-4 L -7,-1 M 0,-4 L 7,-1" stroke="#a5d477" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+
+    <!-- the golden leaf at the very top of the tree -->
+    <g id="leaf-golden">
+      <line x1="0" y1="14" x2="2" y2="24" stroke="#a5792e" stroke-width="3" stroke-linecap="round"/>
+      <path d="M 0,-21 L 6,-6.4 L 21,-6.4 L 8.8,2.9 L 12.8,17.6 L 0,8.8 L -12.8,17.6
+               L -8.8,2.9 L -21,-6.4 L -6,-6.4 Z" fill="#ffd166" stroke="#f4a93c" stroke-width="2"/>
+      <path d="M 0,-13 L 0,5" stroke="#fff4cf" stroke-width="2.4" stroke-linecap="round"/>
+    </g>
+
+    <!-- a prehistoric dragonfly: the bug that shows up on a wrong letter -->
+    <g id="bug-dragonfly">
+      <g fill="#bfe6f2" opacity="0.75" stroke="#7fb8cc" stroke-width="1.2">
+        <ellipse cx="-2" cy="-13" rx="19" ry="6.5" transform="rotate(-14 -2 -13)"/>
+        <ellipse cx="-6" cy="-6" rx="16" ry="5.5" transform="rotate(10 -6 -6)"/>
+        <ellipse cx="8" cy="-12" rx="14" ry="5" transform="rotate(16 8 -12)"/>
+        <ellipse cx="10" cy="-5" rx="12" ry="4.5" transform="rotate(-8 10 -5)"/>
+      </g>
+      <path d="M -26,4 C -10,-2 10,-3 20,-2" stroke="#6fa845" stroke-width="7"
+        fill="none" stroke-linecap="round"/>
+      <path d="M -26,4 C -10,-2 10,-3 20,-2" stroke="#a7d46a" stroke-width="2.6"
+        fill="none" stroke-linecap="round" stroke-dasharray="3 4"/>
+      <circle cx="22" cy="-3" r="8.5" fill="#8cc75a"/>
+      <circle cx="25" cy="-6" r="4" fill="#fff"/>
+      <circle cx="26" cy="-5.4" r="2" fill="#26301a"/>
+      <circle cx="19" cy="-8" r="3" fill="#fff"/>
+      <circle cx="19.6" cy="-7.6" r="1.5" fill="#26301a"/>
+    </g>
+
+    <!-- a tall tree, origin at the foot of the trunk -->
+    <g id="tree-proto">
+      <path d="M -26,0 C -18,-120 -20,-220 -14,-300 L 16,-300 C 20,-210 20,-110 28,0 Z"
+        fill="#7d5a38"/>
+      <path d="M -8,-190 C -40,-220 -62,-244 -74,-268" stroke="#7d5a38" stroke-width="13"
+        fill="none" stroke-linecap="round"/>
+      <path d="M 8,-220 C 40,-244 64,-262 84,-272" stroke="#7d5a38" stroke-width="13"
+        fill="none" stroke-linecap="round"/>
+      <g fill="#4f8f3f">
+        <ellipse cx="0" cy="-346" rx="126" ry="74"/>
+        <ellipse cx="-92" cy="-296" rx="76" ry="48"/>
+        <ellipse cx="94" cy="-300" rx="80" ry="50"/>
+        <ellipse cx="-16" cy="-408" rx="78" ry="48"/>
+      </g>
+      <g fill="#61a94c">
+        <ellipse cx="-30" cy="-360" rx="74" ry="42"/>
+        <ellipse cx="62" cy="-330" rx="52" ry="32"/>
+        <ellipse cx="-8" cy="-420" rx="44" ry="26"/>
+      </g>
+      <g>
+        <use href="#leaf-star" transform="translate(-116,-278) scale(0.8)"/>
+        <use href="#leaf-star" transform="translate(-70,-250) scale(0.7)"/>
+        <use href="#leaf-star" transform="translate(112,-268) scale(0.78)"/>
+        <use href="#leaf-star" transform="translate(70,-252) scale(0.66)"/>
+        <use href="#leaf-star" transform="translate(-140,-330) scale(0.72)"/>
+        <use href="#leaf-star" transform="translate(132,-342) scale(0.74)"/>
+        <use href="#leaf-star" transform="translate(-58,-448) scale(0.68)"/>
+        <use href="#leaf-star" transform="translate(34,-446) scale(0.7)"/>
+        <use href="#leaf-star" transform="translate(-4,-300) scale(0.62)"/>
+      </g>
+    </g>
+
+    <!-- triceratops friend, feet at origin, facing right -->
+    <g id="trike-proto">
+      <g fill="#a9614a">
+        <use href="#dino-leg" transform="translate(-34,0) scale(0.66)"/>
+        <use href="#dino-leg" transform="translate(40,0) scale(0.66)"/>
+      </g>
+      <path d="M -60,-74 C -104,-64 -128,-44 -140,-28 C -120,-36 -92,-48 -62,-52 Z" fill="#c97b5a"/>
+      <ellipse cx="0" cy="-90" rx="76" ry="46" fill="#c97b5a"/>
+      <ellipse cx="-4" cy="-74" rx="54" ry="27" fill="#eebfa4"/>
+      <g fill="#c97b5a">
+        <use href="#dino-leg" transform="translate(-48,0) scale(0.72)"/>
+        <use href="#dino-leg" transform="translate(28,0) scale(0.72)"/>
+      </g>
+      <!-- frill, horns, face -->
+      <path d="M 62,-152 C 108,-156 126,-126 122,-92 C 118,-58 92,-44 66,-52 Z" fill="#b06a4f"/>
+      <path d="M 70,-146 C 104,-148 116,-124 113,-96 C 110,-70 92,-58 72,-62 Z" fill="#d89272"/>
+      <ellipse cx="70" cy="-100" rx="42" ry="34" fill="#c97b5a"/>
+      <path d="M 100,-92 Q 126,-88 130,-74 Q 116,-70 98,-76 Z" fill="#d89272"/>
+      <path d="M 92,-138 L 112,-176 L 100,-132 Z" fill="#f2e2c8"/>
+      <path d="M 60,-140 L 68,-180 L 76,-136 Z" fill="#f2e2c8"/>
+      <path d="M 118,-82 L 140,-96 L 122,-70 Z" fill="#f2e2c8"/>
+      <circle cx="92" cy="-106" r="6.5" fill="#2a1d16"/>
+      <circle cx="94" cy="-108" r="2.2" fill="#fff"/>
+      <path d="M 108,-70 Q 118,-64 128,-70" stroke="#6e4231" stroke-width="2.4"
+        fill="none" stroke-linecap="round"/>
+    </g>
+
+    <!-- stegosaurus friend, feet at origin, facing right -->
+    <g id="stego-proto">
+      <g fill="#6d639b">
+        <use href="#dino-leg" transform="translate(-30,0) scale(0.6)"/>
+        <use href="#dino-leg" transform="translate(42,0) scale(0.6)"/>
+      </g>
+      <path d="M -68,-72 C -116,-72 -150,-60 -172,-48 C -148,-48 -110,-50 -70,-54 Z" fill="#8a7fb5"/>
+      <path d="M -150,-54 L -176,-66 M -154,-46 L -180,-42" stroke="#5c5183" stroke-width="7"
+        stroke-linecap="round"/>
+      <ellipse cx="0" cy="-84" rx="80" ry="42" fill="#8a7fb5"/>
+      <ellipse cx="-2" cy="-68" rx="58" ry="24" fill="#cfc7e6"/>
+      <g fill="#8a7fb5">
+        <use href="#dino-leg" transform="translate(-44,0) scale(0.66)"/>
+        <use href="#dino-leg" transform="translate(30,0) scale(0.66)"/>
+      </g>
+      <!-- back plates -->
+      <g fill="#f0a35c" stroke="#d1813c" stroke-width="2">
+        <path d="M -58,-116 L -44,-152 L -28,-116 Z"/>
+        <path d="M -26,-124 L -10,-166 L 8,-124 Z"/>
+        <path d="M 10,-122 L 26,-160 L 42,-120 Z"/>
+        <path d="M -86,-104 L -74,-134 L -62,-106 Z"/>
+        <path d="M 44,-112 L 58,-142 L 70,-110 Z"/>
+      </g>
+      <!-- small low head -->
+      <ellipse cx="94" cy="-88" rx="30" ry="21" fill="#8a7fb5"/>
+      <ellipse cx="116" cy="-80" rx="14" ry="11" fill="#8a7fb5"/>
+      <circle cx="100" cy="-96" r="6" fill="#241f33"/>
+      <circle cx="102" cy="-98" r="2" fill="#fff"/>
+      <path d="M 110,-72 Q 120,-66 128,-72" stroke="#4d4470" stroke-width="2.4"
+        fill="none" stroke-linecap="round"/>
+    </g>
+
+    <!-- scenery + effects -->
+    <g id="fern-proto">
+      <g stroke="#4f8f3f" stroke-width="7" fill="none" stroke-linecap="round">
+        <path d="M 0,0 C -6,-30 -24,-52 -48,-64"/>
+        <path d="M 0,0 C -2,-36 -12,-64 -26,-84"/>
+        <path d="M 0,0 C 4,-38 12,-66 28,-86"/>
+        <path d="M 0,0 C 8,-30 26,-52 50,-62"/>
+      </g>
+      <g stroke="#61a94c" stroke-width="4" fill="none" stroke-linecap="round">
+        <path d="M 0,-4 C -4,-26 -16,-42 -34,-52"/>
+        <path d="M 0,-4 C 6,-26 20,-42 38,-50"/>
+      </g>
+    </g>
+    <path id="volcano-proto" fill="#6b5a7a"
+      d="M -180,0 L -52,-146 C -40,-160 -16,-164 -2,-152 L 34,-122 L 60,-146
+         C 74,-158 96,-152 104,-136 L 180,0 Z"/>
+    <path id="droplet-proto" fill="#9fdcf5"
+      d="M 0,-24 C 12,-9 21,0 21,11 A 21 21 0 1 1 -21,11 C -21,0 -12,-9 0,-24 Z"/>
+    <path id="heart-proto" fill="#ff6b81"
+      d="M 0,-4 C -4,-13 -17,-13 -17,-2 C -17,8 0,17 0,17 C 0,17 17,8 17,-2 C 17,-13 4,-13 0,-4 Z"/>
+    <path id="star-proto" fill="#ffd166"
+      d="M 0,-13 L 3.8,-4 L 13,-4 L 5.5,1.8 L 8,11 L 0,5.5 L -8,11 L -5.5,1.8 L -13,-4 L -3.8,-4 Z"/>
+    <g id="sparkle-proto" fill="#fff3bf">
+      <path d="M 0,-18 L 4,-4 L 18,0 L 4,4 L 0,18 L -4,4 L -18,0 L -4,-4 Z"/>
+      <circle r="3.4" fill="#fff"/>
+    </g>
+  </defs>
+</svg>
+
+<div id="app">
+
+  <!-- ======= main scene: Spellasaurus eating star leaves from the tree ======= -->
+  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <circle id="sun" cx="888" cy="96" r="44" fill="#ffe08a"/>
+    <g fill="#ffffff" opacity="0.5">
+      <ellipse cx="180" cy="104" rx="56" ry="20"/>
+      <ellipse cx="226" cy="95" rx="38" ry="16"/>
+      <ellipse cx="560" cy="86" rx="44" ry="16"/>
+      <ellipse cx="600" cy="93" rx="30" ry="13"/>
+    </g>
+    <use href="#volcano-proto" transform="translate(160, 370) scale(0.82)"/>
+    <use href="#volcano-proto" transform="translate(340, 370) scale(0.46)" opacity="0.6"/>
+
+    <!-- ground -->
+    <path d="M -20,400 L -20,364 C 160,348 420,376 660,360 C 820,350 940,368 1020,358 L 1020,400 Z"
+      fill="#7fa64b"/>
+    <path d="M -20,400 L -20,384 C 200,372 480,392 760,378 C 880,372 960,384 1020,378 L 1020,400 Z"
+      fill="#6d9340"/>
+
+    <use href="#tree-proto" transform="translate(730, 372) scale(0.68)"/>
+    <use href="#fern-proto" transform="translate(140, 372) scale(1.0)"/>
+    <use href="#fern-proto" transform="translate(944, 376) scale(0.85)"/>
+    <use href="#fern-proto" transform="translate(292, 368) scale(0.62)"/>
+
+    <!-- Spellasaurus, neck up in the leaves -->
+    <g class="dino" transform="translate(516, 370) scale(0.58)">
+      <use class="tail" href="#bronto-tail"/>
+      <use class="body" href="#bronto-body"/>
+      <use class="neck dino-face" id="bronto" href="#bronto-neck"/>
+      <!-- invisible anchor marking her mouth: leaves fly here (it tracks the neck) -->
+      <g class="neck-anchor"><circle id="bronto-mouth" cx="150" cy="-198" r="2" fill="none"
+        pointer-events="none"/></g>
+    </g>
+  </svg>
+
+  <!-- ======= word tiles ======= -->
+  <div id="word-area">
+    <div id="tiles"></div>
+    <div id="hint"></div>
+  </div>
+
+  <div id="tray" aria-hidden="true"></div>
+</div>
+
+<!-- ======= start overlay ======= -->
+<div id="start-overlay" class="overlay">
+  <svg id="start-dino" viewBox="-310 -372 566 404" aria-hidden="true">
+    <use href="#tree-proto" transform="translate(126, 14) scale(0.7)"/>
+    <use href="#bronto-proto" class="dino-face happy"/>
+  </svg>
+  <h1>SPELLASAURUS</h1>
+  <p class="subtitle">A spelling adventure with Spellasaurus the brontosaurus,<br>
+    who eats star leaves and cracks her tail</p>
+  <div class="press">Press any key to begin!</div>
+</div>
+
+<!-- ======= celebration overlay ======= -->
+<div id="celebration" class="overlay" hidden>
+  <div id="celebration-word"></div>
+  <div id="celebration-caption"></div>
+
+  <!-- happy: snuggling mommy -->
+  <svg id="scene-snuggle" class="scene" viewBox="0 100 800 400" hidden>
+    <path class="ground" d="M 0,500 L 0,464 C 220,452 520,476 800,458 L 800,500 Z"/>
+    <use href="#fern-proto" transform="translate(70, 470) scale(1.1)"/>
+    <use href="#fern-proto" transform="translate(740, 466) scale(0.9)"/>
+    <g class="dino mama">
+      <use class="tail" href="#bronto-tail"/>
+      <use class="body" href="#bronto-body"/>
+      <use class="neck dino-face happy" href="#bronto-neck"/>
+    </g>
+    <g class="dino baby">
+      <use class="tail" href="#bronto-tail"/>
+      <use class="body" href="#bronto-body"/>
+      <use class="neck dino-face happy" href="#bronto-neck"/>
+    </g>
+    <use href="#heart-proto" class="cb-heart h1"/>
+    <use href="#heart-proto" class="cb-heart h2"/>
+    <use href="#heart-proto" class="cb-heart h3"/>
+    <use href="#heart-proto" class="cb-heart h4"/>
+    <use href="#heart-proto" class="cb-heart h5"/>
+  </svg>
+
+  <!-- happy: splashing in the water -->
+  <svg id="scene-splash" class="scene" viewBox="0 100 800 400" hidden>
+    <path class="ground" d="M 0,500 L 0,464 C 220,452 520,476 800,458 L 800,500 Z"/>
+    <ellipse class="pond" cx="470" cy="468" rx="240" ry="46"/>
+    <ellipse class="pond-deep" cx="470" cy="470" rx="196" ry="32"/>
+    <use href="#fern-proto" transform="translate(80, 468) scale(1.0)"/>
+    <ellipse class="foam" cx="444" cy="466" rx="120" ry="26"/>
+    <g class="ripples">
+      <ellipse class="ripple r1" cx="470" cy="468" rx="60" ry="14"/>
+      <ellipse class="ripple r2" cx="470" cy="468" rx="60" ry="14"/>
+      <ellipse class="ripple r3" cx="470" cy="468" rx="60" ry="14"/>
+    </g>
+    <g class="dino swimmer">
+      <use class="tail" href="#bronto-tail"/>
+      <use class="body" href="#bronto-body"/>
+      <use class="neck dino-face happy" href="#bronto-neck"/>
+    </g>
+    <g class="drops">
+      <use href="#droplet-proto" class="drop d1"/>
+      <use href="#droplet-proto" class="drop d2"/>
+      <use href="#droplet-proto" class="drop d3"/>
+      <use href="#droplet-proto" class="drop d4"/>
+      <use href="#droplet-proto" class="drop d5"/>
+      <use href="#droplet-proto" class="drop d6"/>
+      <use href="#droplet-proto" class="drop d7"/>
+      <use href="#droplet-proto" class="drop d8"/>
+      <use href="#droplet-proto" class="drop d9"/>
+      <use href="#droplet-proto" class="drop d10"/>
+    </g>
+  </svg>
+
+  <!-- happy: the tail crack -->
+  <svg id="scene-tailcrack" class="scene" viewBox="0 100 800 400" hidden>
+    <path class="ground" d="M 0,500 L 0,464 C 220,452 520,476 800,458 L 800,500 Z"/>
+    <use href="#fern-proto" transform="translate(720, 464) scale(1.0)"/>
+    <g class="dino cracker">
+      <use class="tail" href="#bronto-tail"/>
+      <use class="body" href="#bronto-body"/>
+      <use class="neck dino-face happy" href="#bronto-neck"/>
+    </g>
+    <g class="sparks">
+      <use href="#sparkle-proto" class="spark k1"/>
+      <use href="#sparkle-proto" class="spark k2"/>
+      <use href="#sparkle-proto" class="spark k3"/>
+      <use href="#sparkle-proto" class="spark k4"/>
+      <use href="#sparkle-proto" class="spark k5"/>
+      <use href="#sparkle-proto" class="spark k6"/>
+      <use href="#sparkle-proto" class="spark k7"/>
+      <use href="#sparkle-proto" class="spark k8"/>
+    </g>
+    <text class="crack-word" x="96" y="292">CRACK!</text>
+  </svg>
+
+  <!-- happy: playing with friends -->
+  <svg id="scene-friends" class="scene" viewBox="0 100 800 400" hidden>
+    <path class="ground" d="M 0,500 L 0,464 C 220,452 520,476 800,458 L 800,500 Z"/>
+    <use href="#fern-proto" transform="translate(50, 468) scale(0.9)"/>
+    <use href="#fern-proto" transform="translate(760, 462) scale(0.9)"/>
+    <g class="trike-wrap"><use href="#trike-proto" class="friend-trike"/></g>
+    <g class="dino player">
+      <use class="tail" href="#bronto-tail"/>
+      <use class="body" href="#bronto-body"/>
+      <use class="neck dino-face happy" href="#bronto-neck"/>
+    </g>
+    <g class="stego-wrap"><use href="#stego-proto" class="friend-stego"/></g>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+    <use href="#star-proto" class="cb-star s4"/>
+    <use href="#star-proto" class="cb-star s5"/>
+    <use href="#heart-proto" class="cb-heart h1"/>
+    <use href="#heart-proto" class="cb-heart h2"/>
+  </svg>
+
+  <!-- FINALE: the golden leaf at the very top of the tree -->
+  <svg id="scene-goldenleaf" class="scene" viewBox="0 100 800 400" hidden>
+    <circle cx="706" cy="156" r="34" fill="#ffe08a" opacity="0.9"/>
+    <path class="ground" d="M 0,500 L 0,470 C 220,458 520,482 800,464 L 800,500 Z"/>
+    <use href="#tree-proto" class="big-tree" transform="translate(430, 478) scale(0.72)"/>
+    <use href="#leaf-golden" class="golden-leaf"/>
+    <g class="glow">
+      <use href="#sparkle-proto" class="spark g1"/>
+      <use href="#sparkle-proto" class="spark g2"/>
+      <use href="#sparkle-proto" class="spark g3"/>
+      <use href="#sparkle-proto" class="spark g4"/>
+      <use href="#sparkle-proto" class="spark g5"/>
+      <use href="#sparkle-proto" class="spark g6"/>
+    </g>
+    <g class="dino climber">
+      <use class="tail" href="#bronto-tail"/>
+      <use class="body" href="#bronto-body"/>
+      <use class="neck dino-face" href="#bronto-neck"/>
+    </g>
+    <use href="#star-proto" class="cb-star f1"/>
+    <use href="#star-proto" class="cb-star f2"/>
+    <use href="#star-proto" class="cb-star f3"/>
+    <use href="#star-proto" class="cb-star f4"/>
+    <use href="#star-proto" class="cb-star f5"/>
+    <use href="#star-proto" class="cb-star f6"/>
+  </svg>
+</div>
+
+<script src="words.js"></script>
+<script src="../../engine/rules.js"></script>
+<script src="../../engine/fx.js"></script>
+<script src="../../engine/engine.js"></script>
+<script src="theme.js"></script>
+</body>
+</html>
