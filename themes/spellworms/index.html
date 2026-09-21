@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spellworms</title>
+<link rel="stylesheet" href="../../engine/engine.css">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+
+<!-- ======= shared art (referenced everywhere via <use>) =======
+     A giant tube worm is drawn in two pieces so scenes can articulate it:
+       #worm-tube   — the white tube, origin at the seafloor, opening at y = -202
+       #worm-plume  — the red fronds and the face, pivot at the tube's RIM
+     A scene places the pieces at this fixed local offset (see theme.css .worm):
+       plume: translate(0, -202)
+     The plume is drawn BEFORE the tube so the tube occludes it — that is what makes
+     the startled duck read as the worm pulling down inside its tube.
+     #worm-proto glues both together for static art. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+
+    <linearGradient id="water-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#08354f"/>
+      <stop offset="0.5"  stop-color="#041d31"/>
+      <stop offset="1"    stop-color="#020d17"/>
+    </linearGradient>
+    <radialGradient id="warm-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ff9a3c" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#ff9a3c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lamp-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff3c4" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#fff3c4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nodule-grad" cx="36%" cy="30%" r="76%">
+      <stop offset="0"   stop-color="#6f7fa6"/>
+      <stop offset="0.5" stop-color="#3a3a58"/>
+      <stop offset="1"   stop-color="#191a2c"/>
+    </radialGradient>
+
+    <!-- ---------- the giant tube worm ---------- -->
+
+    <!-- One frond, base at the origin, growing straight up. A pointed blade with a
+         fringe of barbs drawn BEHIND it, so only the barb tips show past the silhouette
+         and the whole thing reads as a feather rather than a spike. -->
+    <g id="frond-blade">
+      <g stroke="var(--frond, #d6392f)" stroke-width="3.6" stroke-linecap="round">
+        <path d="M 0,-80 L -10,-71 M 0,-80 L 10,-71"/>
+        <path d="M 0,-66 L -14,-56 M 0,-66 L 14,-56"/>
+        <path d="M 0,-52 L -16,-42 M 0,-52 L 16,-42"/>
+        <path d="M 0,-38 L -17,-28 M 0,-38 L 17,-28"/>
+        <path d="M 0,-24 L -16,-14 M 0,-24 L 16,-14"/>
+        <path d="M 0,-10 L -14,-1  M 0,-10 L 14,-1"/>
+      </g>
+      <path d="M -8,2 C -12,-30 -10,-62 0,-92 C 10,-62 12,-30 8,2 Z" fill="var(--frond, #d6392f)"/>
+      <path d="M 0,-84 L 0,0" stroke="var(--frond-lite, #ff7a63)" stroke-width="2.6"
+        stroke-linecap="round" opacity="0.68"/>
+      <g stroke="var(--frond-lite, #ff7a63)" stroke-width="2" stroke-linecap="round" opacity="0.5">
+        <path d="M 0,-66 L -7,-58 M 0,-66 L 7,-58"/>
+        <path d="M 0,-50 L -8,-42 M 0,-50 L 8,-42"/>
+        <path d="M 0,-34 L -8,-26 M 0,-34 L 8,-26"/>
+        <path d="M 0,-18 L -7,-10 M 0,-18 L 7,-10"/>
+      </g>
+    </g>
+
+    <!-- the plume: fronds + the collar that carries the face. Pivot at the tube rim. -->
+    <g id="worm-plume">
+      <g transform="translate(0,-24)">
+        <use href="#frond-blade" transform="rotate(-50) scale(0.82)"/>
+        <use href="#frond-blade" transform="rotate(-33) scale(0.92)"/>
+        <use href="#frond-blade" transform="rotate(-16) scale(1.04)"/>
+        <use href="#frond-blade" transform="rotate(0)   scale(1.1)"/>
+        <use href="#frond-blade" transform="rotate(16)  scale(1.04)"/>
+        <use href="#frond-blade" transform="rotate(33)  scale(0.92)"/>
+        <use href="#frond-blade" transform="rotate(50)  scale(0.82)"/>
+      </g>
+      <ellipse cx="0" cy="-18" rx="19" ry="21" fill="var(--frond, #d6392f)"/>
+      <ellipse cx="-3" cy="-23" rx="13" ry="13" fill="var(--frond-lite, #ff7a63)" opacity="0.4"/>
+
+      <!-- eyes: open (the face only appears on a .worm-face element) -->
+      <g style="display: var(--eyes-open, none)">
+        <circle cx="-7.5" cy="-26" r="5.4" fill="#fdf6ec"/>
+        <circle cx="7.5"  cy="-26" r="5.4" fill="#fdf6ec"/>
+        <circle cx="-6.6" cy="-26.6" r="2.7" fill="#2a1414"/>
+        <circle cx="8.4"  cy="-26.6" r="2.7" fill="#2a1414"/>
+        <circle cx="-5.8" cy="-27.8" r="1" fill="#fff"/>
+        <circle cx="9.2"  cy="-27.8" r="1" fill="#fff"/>
+      </g>
+      <!-- eyes: happy (closed arcs) -->
+      <g style="display: var(--eyes-happy, none)"
+         stroke="#2a1414" stroke-width="2.6" stroke-linecap="round" fill="none">
+        <path d="M -12,-26 Q -7.5,-32 -3,-26"/>
+        <path d="M 3,-26 Q 7.5,-32 12,-26"/>
+      </g>
+      <!-- mouths -->
+      <path style="display: var(--mouth-smile, none)" d="M -6,-13 Q 0,-6 6,-13"
+        stroke="#7d1d16" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+      <g style="display: var(--mouth-munch, none)">
+        <ellipse cx="0" cy="-11" rx="7.6" ry="6.4" fill="#5e1510"/>
+        <ellipse cx="0" cy="-8.6" rx="4.4" ry="2.8" fill="#ff9d94"/>
+      </g>
+      <g style="display: var(--mouth-yuck, none)">
+        <path d="M -8,-12 Q -4,-17 0,-12 Q 4,-7 8,-12" stroke="#7d1d16" stroke-width="2.4"
+          stroke-linecap="round" fill="none"/>
+      </g>
+    </g>
+
+    <!-- the chitin tube: origin on the seafloor, opening at y = -202 -->
+    <g id="worm-tube">
+      <path d="M -20,0 C -22,-64 -18,-140 -13,-202 L 13,-202 C 18,-140 22,-64 20,0 Z"
+        fill="var(--tube, #f3eee2)"/>
+      <path d="M 4,0 C 7,-64 9,-140 10,-202 L 13,-202 C 18,-140 22,-64 20,0 Z"
+        fill="var(--tube-shade, #cdc3b0)"/>
+      <g stroke="var(--tube-shade, #cdc3b0)" stroke-width="2.2" fill="none" opacity="0.8">
+        <path d="M -19,-30  Q 0,-24  19,-30"/>
+        <path d="M -18,-66  Q 0,-60  18,-66"/>
+        <path d="M -17,-104 Q 0,-98  17,-104"/>
+        <path d="M -15,-142 Q 0,-136 15,-142"/>
+        <path d="M -14,-174 Q 0,-168 14,-174"/>
+      </g>
+      <ellipse cx="0" cy="-202" rx="13" ry="4.8" fill="var(--tube-rim, #b3a893)"/>
+      <ellipse cx="0" cy="-3" rx="27" ry="10" fill="var(--tube-foot, #59473a)"/>
+    </g>
+
+    <!-- the whole worm in one piece, for static art -->
+    <g id="worm-proto">
+      <use href="#worm-plume" transform="translate(0,-202)"/>
+      <use href="#worm-tube"/>
+    </g>
+
+    <!-- ---------- the vent ---------- -->
+
+    <!-- Black smoker chimney: origin at its base, the mouth at about (-22, -212).
+         Craggy and top-heavy, the way sulfide chimneys actually grow. -->
+    <g id="vent-proto">
+      <!-- the main spire -->
+      <path d="M -80,0 C -64,-42 -52,-80 -46,-120 C -42,-152 -48,-184 -40,-208
+               L -6,-214 C 0,-182 6,-150 12,-120 C 20,-78 42,-36 66,0 Z" fill="#1b1622"/>
+      <!-- the lit left face -->
+      <path d="M -80,0 C -64,-42 -52,-80 -46,-120 C -42,-152 -48,-184 -40,-208
+               L -24,-211 C -24,-176 -26,-142 -24,-116 C -22,-76 -20,-36 -18,0 Z"
+        fill="#2c2438"/>
+      <!-- a shorter second chimney, as these things always come in clusters -->
+      <path d="M 24,0 C 34,-30 44,-56 48,-86 L 74,-90 C 76,-58 84,-28 96,0 Z" fill="#141019"/>
+      <ellipse cx="61" cy="-89" rx="13" ry="5" fill="#0a0810"/>
+      <!-- knobbly sulfide crust down the flanks -->
+      <g fill="#6d4630" opacity="0.7">
+        <ellipse cx="-38" cy="-186" rx="14" ry="7" transform="rotate(-12 -38 -186)"/>
+        <ellipse cx="-4" cy="-176" rx="11" ry="6" transform="rotate(14 -4 -176)"/>
+        <ellipse cx="-46" cy="-132" rx="13" ry="7"/>
+        <ellipse cx="8" cy="-120" rx="10" ry="6"/>
+        <ellipse cx="-58" cy="-62" rx="15" ry="8" transform="rotate(-20 -58 -62)"/>
+        <ellipse cx="34" cy="-46" rx="12" ry="7" transform="rotate(22 34 -46)"/>
+      </g>
+      <g fill="#c98a3c" opacity="0.45">
+        <circle cx="-40" cy="-160" r="4"/>
+        <circle cx="0" cy="-146" r="3.4"/>
+        <circle cx="-52" cy="-98" r="3.6"/>
+        <circle cx="20" cy="-72" r="3"/>
+      </g>
+      <!-- the orifice, glowing with 350-degree water -->
+      <ellipse cx="-23" cy="-211" rx="20" ry="7.5" fill="#0a0810"/>
+      <ellipse cx="-23" cy="-212" rx="13" ry="4.6" fill="#a8461a"/>
+      <ellipse cx="-23" cy="-213" rx="7" ry="2.4" fill="#ffb457"/>
+    </g>
+
+    <path id="smoke-puff" fill="#0f0b16"
+      d="M 0,-26 C 20,-30 34,-14 30,4 C 40,10 36,28 20,28 C 10,38 -12,36 -18,24
+         C -36,24 -40,4 -28,-6 C -32,-22 -14,-34 0,-26 Z"/>
+
+    <!-- ---------- the minerals the vent hands out ---------- -->
+
+    <!-- one crystal chunk; the colour comes from whoever wraps it -->
+    <g id="mineral-shape">
+      <path d="M -16,-2 L -6,-20 L 10,-22 L 20,-6 L 12,14 L -8,16 Z"/>
+      <path d="M -6,-20 L 2,-4 L 20,-6" fill="none" stroke="rgba(255,255,255,0.55)"
+        stroke-width="2.2" stroke-linejoin="round"/>
+      <path d="M 2,-4 L -8,16" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="2.2"/>
+    </g>
+    <g id="mineral-pyrite" fill="#f0cc55">
+      <use href="#mineral-shape"/>
+      <circle cx="-8" cy="-10" r="2.6" fill="#fff8d8"/>
+    </g>
+    <g id="mineral-copper" fill="#c07ad0">
+      <use href="#mineral-shape"/>
+      <circle cx="-8" cy="-10" r="2.6" fill="#ffe0ff"/>
+    </g>
+    <g id="mineral-barite" fill="#9fd8ee">
+      <use href="#mineral-shape"/>
+      <circle cx="-8" cy="-10" r="2.6" fill="#f0fdff"/>
+    </g>
+
+    <!-- the rare prize: a polymetallic manganese nodule -->
+    <g id="nodule-proto">
+      <circle r="46" fill="url(#nodule-grad)"/>
+      <g fill="#4a4a6d" opacity="0.8">
+        <circle cx="-16" cy="-14" r="13"/>
+        <circle cx="14" cy="-20" r="9"/>
+        <circle cx="20" cy="10" r="14"/>
+        <circle cx="-12" cy="20" r="11"/>
+        <circle cx="-30" cy="6" r="8"/>
+      </g>
+      <!-- an oily rainbow sheen, the way a wet nodule looks in the lights -->
+      <g opacity="0.55">
+        <path d="M -40,-18 A 46 46 0 0 1 -6,-45" stroke="#7fe0d0" stroke-width="7" fill="none"/>
+        <path d="M -30,-32 A 46 46 0 0 1 14,-44" stroke="#9db6ff" stroke-width="6" fill="none"/>
+        <path d="M 24,-38 A 46 46 0 0 1 44,-8" stroke="#e59bff" stroke-width="5" fill="none"/>
+      </g>
+      <ellipse cx="-18" cy="-24" rx="11" ry="6" fill="#dfe7ff" opacity="0.5"
+        transform="rotate(-28 -18 -24)"/>
+    </g>
+
+    <!-- ---------- the neighbours ---------- -->
+
+    <!-- ghost crab: feet at the origin, facing right; the claws wave by themselves -->
+    <g id="crab-proto">
+      <g stroke="#e8d9cf" stroke-width="6" fill="none" stroke-linecap="round">
+        <path d="M -20,-34 C -44,-28 -58,-14 -62,0"/>
+        <path d="M -12,-36 C -34,-24 -44,-10 -46,2"/>
+        <path d="M 12,-36 C 30,-24 40,-10 42,2"/>
+        <path d="M 20,-34 C 44,-28 56,-14 60,0"/>
+      </g>
+      <g stroke="#f6eae1" stroke-width="6" fill="none" stroke-linecap="round">
+        <path d="M -16,-40 C -40,-34 -54,-20 -58,-6"/>
+        <path d="M 16,-40 C 40,-34 52,-20 56,-6"/>
+      </g>
+      <!-- carapace -->
+      <ellipse cx="0" cy="-48" rx="42" ry="28" fill="#f6eae1"/>
+      <path d="M -42,-50 C -22,-66 22,-66 42,-50 C 22,-58 -22,-58 -42,-50 Z" fill="#fffaf5"/>
+      <ellipse cx="0" cy="-42" rx="28" ry="15" fill="#e4cfc2" opacity="0.6"/>
+      <!-- eyestalks -->
+      <g>
+        <rect x="-15" y="-90" width="6" height="26" rx="3" fill="#f6eae1"/>
+        <rect x="9" y="-90" width="6" height="26" rx="3" fill="#f6eae1"/>
+        <circle cx="-12" cy="-92" r="8" fill="#2a2030"/>
+        <circle cx="12" cy="-92" r="8" fill="#2a2030"/>
+        <circle cx="-14" cy="-95" r="2.6" fill="#fff"/>
+        <circle cx="10" cy="-95" r="2.6" fill="#fff"/>
+      </g>
+      <path d="M -10,-38 Q 0,-30 10,-38" stroke="#b79c8c" stroke-width="2.6"
+        stroke-linecap="round" fill="none"/>
+      <!-- claws: a palm with two diverging fingers, waving on their own inside the proto -->
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 -44 -58; -22 -44 -58; 0 -44 -58" dur="0.95s" repeatCount="indefinite"/>
+        <path d="M -44,-58 C -54,-63 -61,-68 -66,-73" stroke="#f6eae1" stroke-width="17"
+          fill="none" stroke-linecap="round"/>
+        <path d="M -72,-70 C -92,-74 -110,-82 -122,-90 C -110,-99 -90,-96 -74,-88 Z" fill="#e4d2c5"/>
+        <ellipse cx="-84" cy="-82" rx="27" ry="21" transform="rotate(-28 -84 -82)" fill="#fffaf5"/>
+        <path d="M -90,-94 C -106,-104 -120,-114 -128,-122 C -116,-126 -98,-114 -84,-100 Z" fill="#fffaf5"/>
+      </g>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 44 -58; 18 44 -58; 0 44 -58" dur="0.95s" begin="0.3s" repeatCount="indefinite"/>
+        <path d="M 44,-58 C 54,-63 61,-68 66,-73" stroke="#f6eae1" stroke-width="17"
+          fill="none" stroke-linecap="round"/>
+        <path d="M 72,-70 C 92,-74 110,-82 122,-90 C 110,-99 90,-96 74,-88 Z" fill="#e4d2c5"/>
+        <ellipse cx="84" cy="-82" rx="27" ry="21" transform="rotate(28 84 -82)" fill="#fffaf5"/>
+        <path d="M 90,-94 C 106,-104 120,-114 128,-122 C 116,-126 98,-114 84,-100 Z" fill="#fffaf5"/>
+      </g>
+    </g>
+
+    <!-- Dumbo octopus: origin in the middle of the bell, facing right. The fins are the
+         whole point of the animal, so they are wide, low and almost horizontal — pointed
+         up they read as rabbit ears. They flap by themselves inside the proto. -->
+    <g id="octo-proto">
+      <!-- the webbed skirt of arms, scalloped where the web hangs between them -->
+      <path d="M -64,-6 C -78,38 -62,84 -36,100 C -28,82 -21,88 -13,102
+               C -4,86 4,86 13,102 C 21,88 28,82 36,100 C 62,84 78,38 64,-6 Z"
+        fill="#b98fd6"/>
+      <g stroke="#a67bc6" stroke-width="3" fill="none" opacity="0.8">
+        <path d="M -36,8 C -34,46 -34,74 -36,96"/>
+        <path d="M -13,12 C -13,52 -13,80 -13,98"/>
+        <path d="M 13,12 C 13,52 13,80 13,98"/>
+        <path d="M 36,8 C 34,46 34,74 36,96"/>
+      </g>
+      <!-- arm tips curling out from under the web -->
+      <g stroke="#c9a3e2" stroke-width="8" fill="none" stroke-linecap="round">
+        <path d="M -36,96 C -44,106 -52,108 -58,104"/>
+        <path d="M -13,102 C -15,114 -21,120 -28,120"/>
+        <path d="M 13,102 C 15,114 21,120 28,120"/>
+        <path d="M 36,96 C 44,106 52,108 58,104"/>
+      </g>
+      <!-- mantle -->
+      <ellipse cx="0" cy="-12" rx="60" ry="50" fill="#d3a9e8"/>
+      <ellipse cx="-16" cy="-30" rx="27" ry="18" fill="#eccdf7" opacity="0.7"/>
+      <!-- the dumbo ears -->
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 -50 -26; -26 -50 -26; 0 -50 -26" dur="1.1s" repeatCount="indefinite"/>
+        <path d="M -50,-34 C -84,-58 -128,-52 -140,-26 C -130,4 -84,8 -50,-12 Z" fill="#c088dd"/>
+        <path d="M -56,-30 C -84,-46 -116,-42 -126,-26" stroke="#dcb4ef" stroke-width="5"
+          fill="none" stroke-linecap="round" opacity="0.7"/>
+      </g>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 50 -26; 26 50 -26; 0 50 -26" dur="1.1s" repeatCount="indefinite"/>
+        <path d="M 50,-34 C 84,-58 128,-52 140,-26 C 130,4 84,8 50,-12 Z" fill="#c088dd"/>
+        <path d="M 56,-30 C 84,-46 116,-42 126,-26" stroke="#dcb4ef" stroke-width="5"
+          fill="none" stroke-linecap="round" opacity="0.7"/>
+      </g>
+      <!-- face -->
+      <circle cx="-22" cy="-6" r="10" fill="#2b1b34"/>
+      <circle cx="22" cy="-6" r="10" fill="#2b1b34"/>
+      <circle cx="-24" cy="-10" r="3.6" fill="#fff"/>
+      <circle cx="20" cy="-10" r="3.6" fill="#fff"/>
+      <path d="M -10,14 Q 0,23 10,14" stroke="#7d5a91" stroke-width="3.2"
+        stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- Pompeii worm: a fleecy grey worm leaning out of its crusty little chimney.
+         Origin at the seafloor; the tube's rim is at y = -78. -->
+    <g id="pompeii-tube">
+      <path d="M -14,0 C -15,-30 -12,-58 -9,-78 L 10,-75 C 12,-50 14,-26 15,0 Z" fill="#6a5240"/>
+      <path d="M 4,0 C 6,-32 8,-54 9,-76 L 10,-75 C 12,-50 14,-26 15,0 Z" fill="#4b382a"/>
+      <g fill="#8a6a4a" opacity="0.7">
+        <circle cx="-9" cy="-54" r="4"/><circle cx="7" cy="-38" r="3.4"/>
+        <circle cx="-7" cy="-22" r="3.6"/>
+      </g>
+      <ellipse cx="0" cy="-77" rx="10.5" ry="4" fill="#3b2b20"/>
+    </g>
+    <g id="pompeii-worm">
+      <!-- the grey bacterial fleece it wears on its back -->
+      <path d="M -13,12 C -17,-16 -13,-42 0,-58 C 13,-42 17,-16 13,12 Z" fill="#b3ada6"/>
+      <g fill="#dcd7d0">
+        <circle cx="-10" cy="-2" r="6"/>   <circle cx="9" cy="-10" r="5.6"/>
+        <circle cx="-9" cy="-22" r="5.4"/> <circle cx="8" cy="-30" r="5"/>
+        <circle cx="-4" cy="-42" r="4.6"/> <circle cx="3" cy="-14" r="4"/>
+      </g>
+      <!-- red feathery head plumes -->
+      <g stroke="#e2504a" stroke-width="6" fill="none" stroke-linecap="round">
+        <path d="M 0,-54 C -12,-68 -20,-76 -26,-82"/>
+        <path d="M 0,-54 C -7,-72 -7,-82 -6,-90"/>
+        <path d="M 0,-54 C 4,-72 6,-82 8,-90"/>
+        <path d="M 0,-54 C 12,-68 20,-74 27,-80"/>
+      </g>
+      <g stroke="#ff8078" stroke-width="2.4" fill="none" stroke-linecap="round" opacity="0.7">
+        <path d="M -14,-68 L -20,-66 M -5,-76 L -10,-76 M 5,-76 L 10,-76 M 15,-66 L 21,-65"/>
+      </g>
+      <circle cx="0" cy="-54" r="12" fill="#e2504a"/>
+      <circle cx="-4.6" cy="-56" r="3.2" fill="#fdf6ec"/>
+      <circle cx="4.6" cy="-56" r="3.2" fill="#fdf6ec"/>
+      <circle cx="-4" cy="-56.6" r="1.7" fill="#2a1414"/>
+      <circle cx="5.2" cy="-56.6" r="1.7" fill="#2a1414"/>
+      <path d="M -4,-47 Q 0,-43 4,-47" stroke="#7d1d16" stroke-width="2"
+        stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- giant isopod: feet at the origin, facing right -->
+    <g id="isopod-proto">
+      <g stroke="#b99a63" stroke-width="5" fill="none" stroke-linecap="round">
+        <path d="M -52,-22 L -62,0"/><path d="M -32,-22 L -40,0"/>
+        <path d="M -12,-22 L -18,0"/><path d="M 8,-22 L 4,0"/>
+        <path d="M 28,-22 L 26,0"/><path d="M 46,-22 L 48,0"/>
+      </g>
+      <!-- tail fan -->
+      <path d="M -54,-30 C -84,-34 -100,-24 -104,-10 C -86,-6 -64,-12 -54,-18 Z" fill="#c9a96c"/>
+      <g stroke="#a98a52" stroke-width="2.4" fill="none">
+        <path d="M -58,-28 L -98,-20"/><path d="M -58,-22 L -94,-12"/>
+      </g>
+      <!-- armoured segments, back to front -->
+      <g fill="#dcbd7c" stroke="#b1914f" stroke-width="2">
+        <path d="M -58,-46 C -42,-56 -26,-56 -22,-46 L -22,-22 C -34,-16 -50,-16 -58,-24 Z"/>
+        <path d="M -38,-50 C -22,-62 -4,-62 0,-50 L 0,-22 C -12,-16 -28,-16 -38,-24 Z"/>
+        <path d="M -16,-53 C 0,-66 18,-66 22,-53 L 22,-22 C 10,-16 -6,-16 -16,-24 Z"/>
+        <path d="M 6,-53 C 22,-66 40,-66 44,-53 L 44,-22 C 32,-16 16,-16 6,-24 Z"/>
+      </g>
+      <!-- head -->
+      <path d="M 30,-52 C 46,-64 66,-60 74,-44 C 78,-32 70,-20 54,-18 C 40,-17 30,-24 30,-34 Z"
+        fill="#e7ca8e" stroke="#b1914f" stroke-width="2"/>
+      <circle cx="60" cy="-44" r="7.5" fill="#241a12"/>
+      <circle cx="58" cy="-46.5" r="2.4" fill="#fff"/>
+      <circle cx="44" cy="-48" r="5.5" fill="#241a12"/>
+      <g stroke="#c9a96c" stroke-width="4.5" fill="none" stroke-linecap="round">
+        <path d="M 70,-48 C 88,-56 100,-66 106,-78"/>
+        <path d="M 72,-38 C 92,-40 106,-46 116,-56"/>
+      </g>
+      <path d="M 56,-26 Q 64,-22 70,-28" stroke="#a98a52" stroke-width="2.4"
+        stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- the same isopod, rolled into a ball. Origin at the centre so it can roll. -->
+    <g id="isopod-ball">
+      <circle r="44" fill="#dcbd7c"/>
+      <path d="M 0,-44 A 44 44 0 0 1 0,44 A 30 30 0 0 0 0,-44 Z" fill="#e7ca8e"/>
+      <g stroke="#b1914f" stroke-width="2.6" fill="none">
+        <path d="M -42,-12 A 44 44 0 0 0 -30,32"/>
+        <path d="M -30,-32 A 44 44 0 0 0 -34,26"/>
+        <path d="M -12,-42 A 44 44 0 0 0 -22,36"/>
+        <path d="M 8,-43 A 44 44 0 0 0 -8,43"/>
+        <path d="M 26,-35 A 44 44 0 0 0 10,42"/>
+      </g>
+      <circle cx="30" cy="-24" r="6" fill="#241a12"/>
+      <circle cx="28" cy="-26" r="2" fill="#fff"/>
+    </g>
+
+    <!-- Alvin: white hull, red sail. Origin at the middle of the hull, facing right. -->
+    <g id="alvin-proto">
+      <!-- tail fins and the ducted thruster -->
+      <path d="M -84,-14 L -126,-46 L -120,-6 Z" fill="#cfd6de"/>
+      <path d="M -84,14 L -126,44 L -120,6 Z" fill="#b9c2cc"/>
+      <circle cx="-104" cy="0" r="17" fill="#8c96a2"/>
+      <circle cx="-104" cy="0" r="10" fill="#4e5763"/>
+      <!-- hull -->
+      <ellipse cx="0" cy="0" rx="94" ry="40" fill="#eef2f6"/>
+      <path d="M -94,4 C -60,32 60,32 94,4 C 60,24 -60,24 -94,4 Z" fill="#c2cbd5"/>
+      <ellipse cx="-18" cy="-16" rx="46" ry="12" fill="#ffffff" opacity="0.75"/>
+      <!-- red sail -->
+      <path d="M -34,-34 C -30,-88 30,-88 38,-34 Z" fill="#d6392f"/>
+      <path d="M -24,-40 C -20,-78 16,-78 22,-40 Z" fill="#f05a4c"/>
+      <rect x="-3" y="-118" width="6" height="34" rx="3" fill="#8c96a2"/>
+      <circle cx="0" cy="-120" r="6" fill="#ffd166"/>
+      <!-- personnel sphere and viewport -->
+      <circle cx="80" cy="4" r="30" fill="#dfe5ec"/>
+      <circle cx="92" cy="2" r="15" fill="#2f5a78"/>
+      <circle cx="88" cy="-3" r="5" fill="#9fd8ee" opacity="0.85"/>
+      <!-- sample basket -->
+      <path d="M 44,30 L 116,30 L 108,52 L 52,52 Z" fill="none" stroke="#9aa3ad" stroke-width="4"/>
+      <g stroke="#9aa3ad" stroke-width="2.6">
+        <path d="M 62,30 L 60,52"/><path d="M 80,30 L 80,52"/><path d="M 98,30 L 100,52"/>
+      </g>
+      <!-- lamps -->
+      <circle cx="104" cy="-18" r="8" fill="#ffe9a8"/>
+      <circle cx="58" cy="-32" r="7" fill="#ffe9a8"/>
+      <text x="-44" y="8" font-family="Helvetica, Arial, sans-serif" font-size="20"
+        font-weight="bold" fill="#8c96a2">ALVIN</text>
+    </g>
+
+    <!-- the manipulator arm, pivot at the shoulder; the scene waves it -->
+    <g id="alvin-arm">
+      <path d="M 0,0 L 52,32" stroke="#b9c2cc" stroke-width="17" stroke-linecap="round"/>
+      <path d="M 52,32 L 104,16" stroke="#9aa3ad" stroke-width="15" stroke-linecap="round"/>
+      <circle cx="52" cy="32" r="11" fill="#6f7884"/>
+      <circle cx="0" cy="0" r="10" fill="#6f7884"/>
+      <path d="M 104,16 L 132,0 M 104,16 L 132,32" stroke="#8c96a2" stroke-width="11"
+        stroke-linecap="round"/>
+    </g>
+
+    <!-- Vent eelpout: a long pink fish that lounges among the worms. Origin at the
+         HEAD, facing right, body trailing off to the left; mirror it to swim left. -->
+    <g id="eelpout-proto">
+      <!-- the continuous dorsal/anal fin that runs the whole length -->
+      <path d="M -8,-4 C -58,-30 -112,-30 -158,-8 C -202,12 -242,16 -272,4"
+        stroke="#c1836f" stroke-width="54" fill="none" stroke-linecap="round" opacity="0.5"/>
+      <!-- tail, flicking on its own -->
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 -256 4; 15 -256 4; 0 -256 4; -15 -256 4; 0 -256 4"
+          dur="0.9s" repeatCount="indefinite"/>
+        <path d="M -252,4 L -306,-24 L -296,4 L -306,32 Z" fill="#c1836f"/>
+      </g>
+      <!-- the body, tapered by overlapping two strokes -->
+      <path d="M -118,-20 C -170,2 -214,14 -266,4" stroke="#d9a58e" stroke-width="24"
+        fill="none" stroke-linecap="round"/>
+      <path d="M 2,0 C -48,-26 -98,-28 -144,-10" stroke="#d9a58e" stroke-width="38"
+        fill="none" stroke-linecap="round"/>
+      <path d="M -4,12 C -50,-8 -96,-10 -140,6" stroke="#f2d6c7" stroke-width="13"
+        fill="none" stroke-linecap="round" opacity="0.75"/>
+      <!-- pectoral fin -->
+      <path d="M -14,4 C -30,24 -50,32 -62,28 C -52,10 -32,0 -14,0 Z" fill="#c1836f"/>
+      <!-- head -->
+      <ellipse cx="6" cy="-2" rx="32" ry="26" fill="#e3b49f"/>
+      <path d="M 22,10 Q 36,14 32,22 Q 16,22 8,14 Z" fill="#a9645a"/>
+      <circle cx="16" cy="-12" r="8.5" fill="#241a1a"/>
+      <circle cx="18" cy="-15" r="3" fill="#fff"/>
+      <path d="M -12,-16 C -4,-22 6,-24 14,-22" stroke="#c1836f" stroke-width="3"
+        fill="none" stroke-linecap="round" opacity="0.7"/>
+    </g>
+
+    <!-- Yeti crab (Kiwa): blind, white, and covered in the bacterial fleece it farms
+         by waving its arms. Body has feet at the origin; the arms are their own proto
+         so the scene can dance them. -->
+    <g id="yeti-body">
+      <g stroke="#e6ddd4" stroke-width="7" fill="none" stroke-linecap="round">
+        <path d="M -22,-32 C -48,-26 -64,-12 -68,2"/>
+        <path d="M -12,-34 C -36,-22 -48,-8 -50,4"/>
+        <path d="M 12,-34 C 36,-22 48,-8 50,4"/>
+        <path d="M 22,-32 C 48,-26 62,-12 66,2"/>
+      </g>
+      <!-- leg fur -->
+      <g stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" opacity="0.75">
+        <path d="M -40,-18 L -50,-26 M -30,-8 L -40,-15 M 40,-18 L 50,-26 M 30,-8 L 40,-15"/>
+      </g>
+      <ellipse cx="0" cy="-50" rx="44" ry="30" fill="#f8f4ef"/>
+      <path d="M -44,-52 C -22,-70 22,-70 44,-52 C 22,-60 -22,-60 -44,-52 Z" fill="#fffdfa"/>
+      <ellipse cx="0" cy="-44" rx="28" ry="15" fill="#e4dbd0" opacity="0.55"/>
+      <!-- a blunt rostrum and two tiny blind eyes -->
+      <path d="M -10,-78 L 0,-92 L 10,-78 Z" fill="#f8f4ef"/>
+      <circle cx="-11" cy="-72" r="4.6" fill="#b9a99c"/>
+      <circle cx="11" cy="-72" r="4.6" fill="#b9a99c"/>
+      <path d="M -10,-38 Q 0,-30 10,-38" stroke="#b9a99c" stroke-width="2.6"
+        stroke-linecap="round" fill="none"/>
+    </g>
+    <g id="yeti-arm">
+      <!-- the fleece first, so the arm segments sit on top of it: short dense tufts,
+           not long spines (long ones made it look like a rib cage) -->
+      <g stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.92">
+        <path d="M -7,-6 C -13,-9 -16,-13 -17,-17"/>
+        <path d="M -4,-18 C -10,-21 -13,-25 -14,-29"/>
+        <path d="M -1,-30 C -7,-33 -10,-37 -11,-41"/>
+        <path d="M 3,-44 C -3,-47 -6,-51 -7,-55"/>
+        <path d="M 6,-58 C 0,-60 -3,-64 -4,-68"/>
+        <path d="M 8,-72 C 2,-74 -1,-78 -2,-82"/>
+        <path d="M 9,-86 C 3,-88 0,-92 -1,-96"/>
+        <path d="M 10,-100 C 4,-102 1,-106 0,-110"/>
+        <path d="M 13,-6 C 19,-9 22,-13 23,-17"/>
+        <path d="M 16,-18 C 22,-21 25,-25 26,-29"/>
+        <path d="M 19,-30 C 25,-33 28,-37 29,-41"/>
+        <path d="M 27,-48 C 33,-50 36,-54 37,-58"/>
+        <path d="M 26,-62 C 32,-64 35,-68 36,-72"/>
+        <path d="M 25,-76 C 31,-78 34,-82 35,-86"/>
+        <path d="M 24,-90 C 30,-92 33,-96 34,-100"/>
+      </g>
+      <path d="M 0,0 L 22,-46" stroke="#f8f4ef" stroke-width="21" stroke-linecap="round"/>
+      <path d="M 22,-46 L 16,-104" stroke="#fffdfa" stroke-width="19" stroke-linecap="round"/>
+      <ellipse cx="14" cy="-114" rx="16" ry="18" fill="#fffdfa"/>
+      <path d="M 4,-124 C -2,-138 -6,-150 -6,-156 C 4,-148 12,-136 16,-126 Z" fill="#fffdfa"/>
+      <path d="M 22,-124 C 30,-136 36,-146 38,-152 C 34,-140 30,-128 28,-120 Z" fill="#e9ded3"/>
+    </g>
+
+    <!-- Giant vent clam: one valve, hinged at the origin and fanning to the right.
+         A scene uses two of them (the lower one mirrored) plus the red flesh between. -->
+    <g id="clam-valve">
+      <path d="M 2,6 C 18,-34 58,-48 96,-38 C 118,-31 128,-14 126,6 Z" fill="#f4f1e8"/>
+      <g stroke="#dcd6c6" stroke-width="3" fill="none" stroke-linecap="round">
+        <path d="M 12,0 C 26,-30 58,-40 92,-32"/>
+        <path d="M 26,0 C 38,-24 62,-32 86,-26"/>
+        <path d="M 44,0 C 52,-17 68,-22 84,-18"/>
+      </g>
+      <path d="M 2,6 C 18,-34 58,-48 96,-38" stroke="#c8c2b0" stroke-width="3.4"
+        fill="none" stroke-linecap="round"/>
+    </g>
+    <g id="clam-flesh">
+      <!-- vent clams are bright red inside: their blood is full of haemoglobin -->
+      <path d="M 20,-14 C 46,-26 84,-24 108,-11 C 84,3 46,5 20,-2 Z" fill="#cf4238"/>
+      <path d="M 38,-13 C 62,-19 88,-17 102,-10" stroke="#ff8a7a" stroke-width="4.5"
+        fill="none" stroke-linecap="round" opacity="0.7"/>
+      <ellipse cx="96" cy="-7" rx="11" ry="7" fill="#ff8a7a" opacity="0.85"/>
+    </g>
+
+    <!-- ---------- scenery and effects ---------- -->
+
+    <g id="mussel-clump">
+      <g fill="#2f3b4a" stroke="#465667" stroke-width="2">
+        <ellipse cx="-16" cy="-8" rx="13" ry="8" transform="rotate(-22 -16 -8)"/>
+        <ellipse cx="2" cy="-12" rx="14" ry="9" transform="rotate(8 2 -12)"/>
+        <ellipse cx="20" cy="-7" rx="12" ry="8" transform="rotate(26 20 -7)"/>
+        <ellipse cx="-4" cy="-3" rx="13" ry="8" transform="rotate(-6 -4 -3)"/>
+      </g>
+    </g>
+    <path id="rock-proto" fill="#1c2430"
+      d="M -70,0 C -62,-30 -36,-48 -8,-46 C 20,-44 48,-28 62,0 Z"/>
+    <circle id="bubble-proto" r="9" fill="none" stroke="#bfe8ff" stroke-width="2.6" opacity="0.8"/>
+    <path id="heart-proto" fill="#ff6b81"
+      d="M 0,-4 C -4,-13 -17,-13 -17,-2 C -17,8 0,17 0,17 C 0,17 17,8 17,-2 C 17,-13 4,-13 0,-4 Z"/>
+    <path id="star-proto" fill="#ffd166"
+      d="M 0,-13 L 3.8,-4 L 13,-4 L 5.5,1.8 L 8,11 L 0,5.5 L -8,11 L -5.5,1.8 L -13,-4 L -3.8,-4 Z"/>
+    <g id="sparkle-proto" fill="#fff3bf">
+      <path d="M 0,-18 L 4,-4 L 18,0 L 4,4 L 0,18 L -4,4 L -18,0 L -4,-4 Z"/>
+      <circle r="3.4" fill="#fff"/>
+    </g>
+  </defs>
+</svg>
+
+<div id="app">
+
+  <!-- ======= main scene: Spellworm's vent field ======= -->
+  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <rect x="-20" y="-40" width="1040" height="460" fill="url(#water-grad)"/>
+    <ellipse cx="716" cy="250" rx="240" ry="200" fill="url(#warm-glow)"/>
+
+    <!-- marine snow drifting down through the lights -->
+    <g class="snow" fill="#cfe6f5">
+      <circle class="flake" style="--i:0"  cx="60"  cy="40"  r="2.4"/>
+      <circle class="flake" style="--i:1"  cx="150" cy="120" r="1.8"/>
+      <circle class="flake" style="--i:2"  cx="240" cy="70"  r="2.8"/>
+      <circle class="flake" style="--i:3"  cx="330" cy="160" r="2"/>
+      <circle class="flake" style="--i:4"  cx="410" cy="60"  r="2.4"/>
+      <circle class="flake" style="--i:5"  cx="500" cy="130" r="1.7"/>
+      <circle class="flake" style="--i:6"  cx="580" cy="90"  r="2.6"/>
+      <circle class="flake" style="--i:7"  cx="660" cy="170" r="2"/>
+      <circle class="flake" style="--i:8"  cx="740" cy="50"  r="2.2"/>
+      <circle class="flake" style="--i:9"  cx="820" cy="140" r="2.8"/>
+      <circle class="flake" style="--i:10" cx="900" cy="80"  r="1.8"/>
+      <circle class="flake" style="--i:11" cx="960" cy="180" r="2.4"/>
+      <circle class="flake" style="--i:12" cx="110" cy="210" r="2"/>
+      <circle class="flake" style="--i:13" cx="290" cy="240" r="2.5"/>
+      <circle class="flake" style="--i:14" cx="470" cy="215" r="1.9"/>
+      <circle class="flake" style="--i:15" cx="860" cy="245" r="2.2"/>
+    </g>
+
+    <!-- far ridge -->
+    <path d="M -20,400 L -20,318 C 90,286 180,320 280,300 C 380,280 470,312 560,296
+             C 680,274 800,306 900,288 C 960,278 1000,296 1020,290 L 1020,400 Z"
+      fill="#0a1725"/>
+
+    <!-- seafloor -->
+    <path d="M -20,400 L -20,360 C 140,344 380,374 620,358 C 800,346 930,368 1020,356 L 1020,400 Z"
+      fill="#15202d"/>
+    <path d="M -20,400 L -20,382 C 180,370 460,392 740,378 C 870,372 960,384 1020,378 L 1020,400 Z"
+      fill="#0e1720"/>
+
+    <use href="#rock-proto" transform="translate(120, 370) scale(0.9)"/>
+    <use href="#rock-proto" transform="translate(880, 364) scale(1.1)"/>
+    <use href="#rock-proto" transform="translate(500, 376) scale(0.55)"/>
+
+    <!-- the black smoker, and the worm colonies crowding round it -->
+    <g id="vent-stack">
+      <use class="chimney" href="#vent-proto"/>
+      <g class="smoke">
+        <use href="#smoke-puff" class="puff" style="--i:0; --dx:-26px"/>
+        <use href="#smoke-puff" class="puff" style="--i:1; --dx:14px"/>
+        <use href="#smoke-puff" class="puff" style="--i:2; --dx:-8px"/>
+        <use href="#smoke-puff" class="puff" style="--i:3; --dx:30px"/>
+        <use href="#smoke-puff" class="puff" style="--i:4; --dx:-34px"/>
+        <use href="#smoke-puff" class="puff" style="--i:5; --dx:4px"/>
+        <use href="#sparkle-proto" class="grit" style="--i:0; --dx:-44px"/>
+        <use href="#sparkle-proto" class="grit" style="--i:1; --dx:26px"/>
+        <use href="#sparkle-proto" class="grit" style="--i:2; --dx:-14px"/>
+        <use href="#sparkle-proto" class="grit" style="--i:3; --dx:46px"/>
+      </g>
+    </g>
+
+    <!-- the colony: ten neighbours, plus Spellworm out in front -->
+    <g class="colony">
+      <g class="worm w1"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w2"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w3"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w4"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w5"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w6"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w7"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w8"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w9"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w10"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    </g>
+
+    <use href="#mussel-clump" transform="translate(250, 372) scale(1.1)"/>
+    <use href="#mussel-clump" transform="translate(600, 380) scale(0.9)"/>
+    <use href="#mussel-clump" transform="translate(830, 374) scale(1.2)"/>
+
+    <!-- Spellworm herself, front and centre -->
+    <g class="worm hero">
+      <use class="plume worm-face" id="spellworm" href="#worm-plume"/>
+      <use class="tube" href="#worm-tube"/>
+      <!-- invisible anchor marking her mouth: minerals fly here (it tracks the plume) -->
+      <g class="plume-anchor"><circle id="worm-mouth" cx="0" cy="-14" r="2" fill="none"
+        pointer-events="none"/></g>
+    </g>
+  </svg>
+
+  <!-- ======= word tiles ======= -->
+  <div id="word-area">
+    <div id="tiles"></div>
+    <div id="hint"></div>
+  </div>
+
+  <div id="tray" aria-hidden="true"></div>
+</div>
+
+<!-- ======= start overlay ======= -->
+<div id="start-overlay" class="overlay">
+  <svg id="start-worm" viewBox="-250 -330 500 366" aria-hidden="true">
+    <ellipse cx="60" cy="-120" rx="230" ry="180" fill="url(#warm-glow)"/>
+    <use href="#vent-proto" transform="translate(150, 20) scale(0.9)"/>
+    <use href="#worm-proto" transform="translate(-130, 24) scale(0.62)"/>
+    <use href="#worm-proto" transform="translate(-52, 26) scale(0.48)"/>
+    <g class="worm hero-static" transform="translate(30, 30)">
+      <use class="plume worm-face happy" href="#worm-plume"/>
+      <use class="tube" href="#worm-tube"/>
+    </g>
+    <path d="M -250,36 L 250,36 L 250,60 L -250,60 Z" fill="#15202d"/>
+  </svg>
+  <h1>SPELLWORMS</h1>
+  <p class="subtitle">A spelling adventure with Spellworm the giant tube worm,<br>
+    who eats sparkling minerals at the bottom of the sea</p>
+  <div class="press">Press any key to begin!</div>
+</div>
+
+<!-- ======= celebration overlay ======= -->
+<div id="celebration" class="overlay" hidden>
+  <div id="celebration-word"></div>
+  <div id="celebration-caption"></div>
+
+  <!-- happy: a ghost crab comes to say hello -->
+  <svg id="scene-crab" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="420" rx="360" ry="170" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(96, 466) scale(0.8)"/>
+    <use href="#mussel-clump" transform="translate(690, 470) scale(1.1)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <g class="crab-wrap"><use href="#crab-proto"/></g>
+    <use href="#heart-proto" class="cb-heart h1"/>
+    <use href="#heart-proto" class="cb-heart h2"/>
+    <use href="#heart-proto" class="cb-heart h3"/>
+    <use href="#heart-proto" class="cb-heart h4"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+  </svg>
+
+  <!-- happy: a dumbo octopus flaps past -->
+  <svg id="scene-octopus" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="430" rx="360" ry="160" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(700, 464) scale(0.9)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <g class="octo-wrap"><use href="#octo-proto"/></g>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+    <use href="#bubble-proto" class="cb-bubble b4"/>
+    <use href="#bubble-proto" class="cb-bubble b5"/>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+  </svg>
+
+  <!-- happy: the Pompeii worms throw a party -->
+  <svg id="scene-pompeii" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="420" rx="380" ry="180" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <g class="pw p1"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="pw p2"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="pw p3"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="pw p4"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="pw p5"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+    <use href="#star-proto" class="cb-star s4"/>
+    <use href="#star-proto" class="cb-star s5"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+    <use href="#bubble-proto" class="cb-bubble b4"/>
+  </svg>
+
+  <!-- happy: Alvin the submarine drops in -->
+  <svg id="scene-alvin" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="430" rx="340" ry="150" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#mussel-clump" transform="translate(120, 470) scale(1.0)"/>
+    <g class="sub-wrap">
+      <path class="beam beam-a" d="M 104,-18 L 356,4 L 338,138 Z"/>
+      <path class="beam beam-b" d="M 58,-32 L 306,44 L 288,170 Z"/>
+      <use href="#alvin-proto"/>
+      <use class="arm" href="#alvin-arm"/>
+    </g>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+    <use href="#bubble-proto" class="cb-bubble b4"/>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+  </svg>
+
+  <!-- happy: a giant isopod rolls in like a marble -->
+  <svg id="scene-isopod" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="430" rx="360" ry="160" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(120, 464) scale(0.7)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#isopod-ball" class="pod-ball"/>
+    <g class="pod-wrap"><use href="#isopod-proto"/></g>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+    <use href="#star-proto" class="cb-star s4"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+  </svg>
+
+  <!-- happy: a vent eelpout comes over for a nose-to-nose -->
+  <svg id="scene-eelpout" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="430" rx="360" ry="160" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(700, 464) scale(0.8)"/>
+    <use href="#mussel-clump" transform="translate(120, 468) scale(1.1)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <g class="eel-wrap"><use href="#eelpout-proto"/></g>
+    <use href="#heart-proto" class="cb-heart h1"/>
+    <use href="#heart-proto" class="cb-heart h2"/>
+    <use href="#heart-proto" class="cb-heart h3"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+  </svg>
+
+  <!-- happy: a yeti crab dances to farm its fur -->
+  <svg id="scene-yeticrab" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="420" cy="420" rx="370" ry="180" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(740, 466) scale(0.7)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <g class="yeti-wrap">
+      <use class="arm arm-l" href="#yeti-arm"/>
+      <use class="arm arm-r" href="#yeti-arm"/>
+      <use href="#yeti-body"/>
+    </g>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+    <use href="#star-proto" class="cb-star s4"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+  </svg>
+
+  <!-- happy: the giant clams sing -->
+  <svg id="scene-clams" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="424" rx="380" ry="180" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <g class="clam c1"><use class="flesh" href="#clam-flesh"/><use class="valve bottom" href="#clam-valve"/><use class="valve top" href="#clam-valve"/></g>
+    <g class="clam c2"><use class="flesh" href="#clam-flesh"/><use class="valve bottom" href="#clam-valve"/><use class="valve top" href="#clam-valve"/></g>
+    <g class="clam c3"><use class="flesh" href="#clam-flesh"/><use class="valve bottom" href="#clam-valve"/><use class="valve top" href="#clam-valve"/></g>
+    <g class="clam c4"><use class="flesh" href="#clam-flesh"/><use class="valve bottom" href="#clam-valve"/><use class="valve top" href="#clam-valve"/></g>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+    <use href="#bubble-proto" class="cb-bubble b4"/>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+  </svg>
+
+  <!-- FINALE: the vent coughs up a rare manganese nodule -->
+  <svg id="scene-nodule" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="430" cy="400" rx="380" ry="200" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,466 C 220,454 520,480 800,460 L 800,500 Z"/>
+    <use class="fin-vent" href="#vent-proto" transform="translate(470, 470) scale(1.0)"/>
+    <g class="blast">
+      <use href="#smoke-puff" class="bpuff q1"/>
+      <use href="#smoke-puff" class="bpuff q2"/>
+      <use href="#smoke-puff" class="bpuff q3"/>
+      <use href="#smoke-puff" class="bpuff q4"/>
+    </g>
+    <use href="#nodule-proto" class="prize"/>
+    <!-- the tasty part: sulfide crystals shaken loose off the nodule -->
+    <use href="#mineral-pyrite" class="cb-gem m1"/>
+    <use href="#mineral-copper" class="cb-gem m2"/>
+    <use href="#mineral-barite" class="cb-gem m3"/>
+    <use href="#mineral-pyrite" class="cb-gem m4"/>
+    <g class="glow">
+      <use href="#sparkle-proto" class="spark g1"/>
+      <use href="#sparkle-proto" class="spark g2"/>
+      <use href="#sparkle-proto" class="spark g3"/>
+      <use href="#sparkle-proto" class="spark g4"/>
+      <use href="#sparkle-proto" class="spark g5"/>
+      <use href="#sparkle-proto" class="spark g6"/>
+    </g>
+    <g class="worm host reacher"><use class="plume worm-face" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#star-proto" class="cb-star f1"/>
+    <use href="#star-proto" class="cb-star f2"/>
+    <use href="#star-proto" class="cb-star f3"/>
+    <use href="#star-proto" class="cb-star f4"/>
+    <use href="#star-proto" class="cb-star f5"/>
+    <use href="#star-proto" class="cb-star f6"/>
+  </svg>
+</div>
+
+<script src="words.js"></script>
+<script src="../../engine/rules.js"></script>
+<script src="../../engine/fx.js"></script>
+<script src="../../engine/engine.js"></script>
+<script src="theme.js"></script>
+</body>
+</html>

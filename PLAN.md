@@ -128,3 +128,61 @@ cleanup function. `test/themes.test.cjs` checks the wiring for every theme.
 - [x] Spellasaurus art, scenes, sound design and choreography
 - [x] Launcher page at the repo root
 - [x] `tools/snap.mjs` takes a theme; `tools/scene.mjs` added for art iteration
+
+## Iteration 4: Spellworms
+
+A third game, built entirely through the theme contract — **`engine/` was not touched**,
+which is the main thing worth recording: a dark underwater world, a hero that hides
+instead of a critter that scurries, and eight celebrations all fit inside the existing
+knobs. The engine's defaults already assume a dark play area, so the palette work was
+just overriding `--accent` and friends.
+
+### The world
+
+Spellworm is a giant tube worm on a hydrothermal vent, two and a half kilometres down.
+Ten neighbours crowd round a black smoker; she stands in the foreground.
+
+- **Tube worm rig** — two pieces, `#worm-tube` and `#worm-plume` (pivot at the tube's
+  rim), with `#worm-proto` gluing them for static art. The plume is drawn **before** the
+  tube so the tube occludes it — that is the whole trick behind the wrong-letter duck.
+- **Correct letter** → one of three real vent sulfides flies to her mouth (pyrite gold,
+  chalcopyrite violet, barite pale blue) and piles up in the tray, chosen with `fx.rand`
+  so the tray ends up mixed.
+- **Wrong letter** → no critter. The vent stops blowing for a second (the smoke `<use>`
+  elements get `animation: none`, the chimney coughs) and she pulls down inside her tube.
+  Non-punitive and, from watching it, the funniest of the three games' wrong-letter beats.
+- **Eight happy animations** picked at random — ghost crab, dumbo octopus, Pompeii worm
+  party, Alvin the submarine, giant isopod, vent eelpout, dancing yeti crab, singing
+  giant clams — and a manganese nodule rising out of the vent as the finale every 4th word.
+- 24 words, 4–9 letters, DEEP through MANGANESE.
+
+### Things learned the hard way
+
+- **Restarting a CSS animation needs a forced reflow, not just a class toggle.** The vent
+  cough and the duck both re-add a class that may already be there; without
+  `void el.getBoundingClientRect()` between the remove and the add, nothing replays.
+- **Two animations on one property, with the second delayed, is how you chain.** A pop
+  then a bob (`pop-up ... forwards, pw-bob ... <delay> infinite alternate`) works because
+  an animation in its delay phase with `fill-mode: none` doesn't apply, so the later one
+  only wins once it starts. Used for the Pompeii worms, Alvin's dive-then-hover, and the
+  isopod's unroll-then-wiggle.
+- **A `<use>`'s CSS `rotate()` pivots on the parent group's origin**, which makes hinges
+  free: place a `<g class="clam">` at the hinge and the two valves just `rotate()` about
+  it, the lower one under an extra `scale(1, -1)`.
+- **SMIL inside a proto covers idle articulation** that every instance should share —
+  crab claws, octopus fins, the eelpout's tail. CSS keyframes stay for anything a scene
+  needs to time.
+- **Bottlebrush plumes read as an afro; pointed blades read as a crown.** What works is a
+  pointed blade with a fringe of barbs drawn *behind* it, so only the barb tips escape
+  the silhouette.
+- **Light cones need `mix-blend-mode: screen`.** A pale yellow fill at low opacity over
+  deep blue is just olive-grey.
+
+### Progress
+
+- [x] Word list, art, sound design, choreography — no engine changes
+- [x] Eight celebration scenes plus the manganese finale, each checked in screenshots
+- [x] `node --test test/` green (31 tests); `snap.mjs spellworms 8` — finale on 4 and 8
+- [x] `snap.mjs spellaluna 3` and `spellasaurus 4` still green
+- [x] `BUNDLE=1 snap.mjs spellworms 5` — the single-file build plays too
+- [x] Launcher card added
