@@ -74,4 +74,5 @@ node tools/scene.mjs spellasaurus goldenleaf 900,2400,3800   # one scene at set 
 
 `tools/probe.mjs` and `tools/bird-test.mjs` are small debugging aids for SVG layout.
 
-See `PLAN.md` for the design plan and build progress.
+See `ADD-GAME.md` to add a third game, and `PLAN.md` for the design plan and
+build progress.
