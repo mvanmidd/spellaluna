@@ -1,0 +1,2766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spellworms</title>
+<style>
+/*
+ * Theme-free layout for the spelling-game shell: letter tiles, overlays, the add-a-word
+ * modal, flying sprites, the tray and the mute button.
+ *
+ * Themes set the palette by overriding these custom properties, and own everything else
+ * (backgrounds, art, celebration choreography).
+ */
+
+:root {
+  --ink: #f3efe0;          /* body text */
+  --ink-dim: rgba(243, 239, 224, 0.6);
+  --accent: #ffd166;       /* highlights: done tiles, headings */
+  --accent-edge: #f4a93c;
+  --accent-ink: #5b3a26;   /* text on top of --accent */
+  --overlay-bg: rgba(13, 19, 48, 0.96);
+  --panel-bg: rgba(13, 19, 48, 0.97);
+  --hairline: rgba(243, 239, 224, 0.3);
+  --tile-bg: rgba(255, 255, 255, 0.08);
+  --tile-ink: rgba(243, 239, 224, 0.32);   /* letter not yet typed */
+  --tile-edge: rgba(243, 239, 224, 0.25);  /* its dashed outline */
+  --hint-ink: var(--ink-dim);
+  --chrome-ink: var(--ink);                /* the mute button, over the play area */
+  --error: #ff6b6b;
+  --game-font: "Chalkboard SE", "Comic Sans MS", "Marker Felt", "Trebuchet MS", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--game-font);
+  color: var(--ink);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px;
+}
+
+/* ---------- word tiles ---------- */
+
+#word-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  width: 100%;
+}
+
+#tiles {
+  --n: 5;
+  --gap: clamp(4px, 1vw, 16px);
+  display: flex;
+  justify-content: center;
+  gap: var(--gap);
+}
+
+/* Tiles are as big as they can be while the whole word still fits on one line. */
+.tile {
+  --tile-w: min(
+    clamp(30px, 10vw, 92px),
+    calc((min(100vw - 32px, 1100px) - (var(--n) - 1) * var(--gap)) / var(--n))
+  );
+  width: var(--tile-w);
+  height: calc(var(--tile-w) * 1.19);
+  font-size: calc(var(--tile-w) * 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: var(--tile-ink);
+  background: var(--tile-bg);
+  border: 3px dashed var(--tile-edge);
+  border-radius: clamp(6px, calc(var(--tile-w) * 0.18), 16px);
+}
+
+.tile.done {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 3px solid var(--accent-edge);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+  animation: tile-pop 0.45s ease-out;
+}
+
+@keyframes tile-pop {
+  0% { transform: scale(0.6) rotate(-6deg); }
+  55% { transform: scale(1.22) rotate(3deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+#hint {
+  font-size: clamp(15px, 2.4vw, 21px);
+  color: var(--hint-ink);
+  letter-spacing: 0.06em;
+  min-height: 1.4em;
+  text-align: center;
+}
+
+/* ---------- collection tray ---------- */
+
+#tray {
+  position: fixed;
+  left: 14px;
+  bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 280px;
+  align-items: flex-end;
+}
+#tray svg {
+  width: 42px;
+  height: 42px;
+  animation: tray-drop 0.4s ease-out;
+}
+@keyframes tray-drop {
+  from { transform: translateY(-22px) scale(0.4); opacity: 0; }
+  to   { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ---------- flying / crawling sprites ---------- */
+
+.sprite {
+  position: fixed;
+  pointer-events: none;
+  z-index: 40;
+}
+.sprite svg { display: block; }
+
+/* ---------- mute button ---------- */
+
+#mute {
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  z-index: 60;
+  font-size: 22px;
+  line-height: 1;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 2px solid var(--chrome-hairline, var(--hairline));
+  background: var(--chrome-bg, var(--tile-bg));
+  color: var(--chrome-ink);
+  cursor: pointer;
+}
+
+/* ---------- overlays ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: var(--overlay-bg);
+  text-align: center;
+  padding: 24px;
+}
+.overlay[hidden] { display: none; }
+
+#start-overlay h1 {
+  margin: 0;
+  font-size: clamp(40px, 8.5vw, 96px);
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  text-shadow: 0 5px 0 rgba(0, 0, 0, 0.35);
+}
+#start-overlay .subtitle {
+  margin: 0;
+  font-size: clamp(16px, 2.6vw, 24px);
+  color: var(--ink);
+  opacity: 0.8;
+}
+#start-overlay .press {
+  margin-top: 18px;
+  font-size: clamp(18px, 3vw, 28px);
+  color: var(--ink);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+/* ---------- celebration overlay ---------- */
+
+#celebration .scene {
+  width: min(92vw, 760px);
+  height: auto;
+}
+#celebration .scene[hidden] { display: none; }
+
+#celebration-caption {
+  font-size: clamp(20px, 3.6vw, 38px);
+  color: var(--accent);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  min-height: 1.4em;
+}
+#celebration-word {
+  font-size: clamp(22px, 4.4vw, 54px);
+  letter-spacing: 0.2em;
+  color: var(--ink);
+}
+
+/* every celebration sprite is positioned purely via CSS transforms */
+#celebration use, #celebration .cb { transform-box: view-box; }
+
+/* ---------- add-a-word modal ---------- */
+
+#add-word-modal { z-index: 70; }
+
+#add-word-card {
+  background: var(--panel-bg);
+  border: 2px solid var(--hairline);
+  border-radius: 20px;
+  padding: 32px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(480px, 90vw);
+  text-align: center;
+}
+
+#add-word-card label {
+  font-size: clamp(16px, 2.4vw, 22px);
+  color: var(--ink);
+}
+
+#add-word-input {
+  font-family: inherit;
+  font-size: clamp(24px, 5vw, 44px);
+  font-weight: bold;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 2px solid var(--hairline);
+  background: var(--tile-bg);
+  color: var(--accent);
+  outline: none;
+  width: 100%;
+}
+#add-word-input:focus {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#add-word-error {
+  font-size: clamp(13px, 1.8vw, 16px);
+  color: var(--error);
+  min-height: 1.2em;
+}
+
+#add-word-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+#add-word-buttons button {
+  font-family: inherit;
+  font-size: clamp(15px, 2vw, 19px);
+  padding: 10px 22px;
+  border-radius: 12px;
+  border: 2px solid var(--hairline);
+  cursor: pointer;
+}
+
+#add-word-confirm {
+  background: rgba(255, 209, 102, 0.18);
+  color: var(--accent);
+}
+#add-word-confirm:hover { background: rgba(255, 209, 102, 0.3); }
+
+#add-word-cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink-dim);
+}
+#add-word-cancel:hover { background: rgba(255, 255, 255, 0.12); }
+</style>
+<style>
+/* Spellworms — a hydrothermal vent, two and a half kilometres down.
+   Layout, tiles, overlays and the add-a-word modal live in ../../engine/engine.css. */
+
+:root {
+  /* the whole game is dark, so the engine's default (dark) chrome works as-is */
+  --ink: #e8f2f8;
+  --ink-dim: rgba(232, 242, 248, 0.64);
+  --accent: #ffc45c;            /* the colour of hot mineral-rich water */
+  --accent-edge: #e8912a;
+  --accent-ink: #3a2408;
+  --overlay-bg: rgba(4, 20, 34, 0.97);
+  --panel-bg: rgba(4, 20, 34, 0.98);
+  --hairline: rgba(232, 242, 248, 0.28);
+  --tile-bg: rgba(159, 216, 238, 0.09);
+  --tile-ink: rgba(232, 242, 248, 0.3);
+  --tile-edge: rgba(159, 216, 238, 0.28);
+
+  /* how tall the vent field is — the dark water below it starts exactly here */
+  --scene-h: min(52vh, 44vw);
+
+  /* Spellworm's colours (the colony worms dim these down) */
+  --tube: #f3eee2;
+  --tube-shade: #cdc3b0;
+  --tube-rim: #b3a893;
+  --tube-foot: #59473a;
+  --frond: #d6392f;
+  --frond-lite: #ff7a63;
+}
+
+body {
+  background:
+    linear-gradient(180deg, #08354f 0%, #041d31 55%, #020d17 100%)
+      no-repeat 0 0 / 100% var(--scene-h),
+    linear-gradient(180deg, #0d1620 0%, #04101a 100%)
+      no-repeat 0 var(--scene-h) / 100% 100%;
+}
+
+/* ---------- main scene ---------- */
+
+/* Edge to edge, like Spellasaurus: "slice" crops ~58 viewBox units off the top on a
+   wide window, so nothing important lives above y ≈ 60. */
+#scene {
+  display: block;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  height: var(--scene-h);
+}
+
+/* ---------- the tube-worm rig ----------
+   Two pieces in a <g class="worm">: the plume pivots at the tube's rim, and is drawn
+   BEFORE the tube so the tube hides it when it ducks. The anchor marking the mouth
+   carries exactly the same transform and animation so treats keep hitting the face. */
+
+.worm .plume, .worm .plume-anchor { transform: translate(0px, -202px); }
+.worm .plume, .worm .tube, .worm .plume-anchor { transform-box: view-box; }
+#scene .worm, #start-worm .worm { transform-box: view-box; }
+
+/* Face control — these custom properties cascade into the <use> shadow tree.
+   A plume with no .worm-face shows no face at all, which is what the colony wants. */
+.worm-face {
+  --eyes-open: block;
+  --eyes-happy: none;
+  --mouth-smile: block;
+  --mouth-munch: none;
+  --mouth-yuck: none;
+}
+.worm-face.happy {
+  --eyes-open: none;
+  --eyes-happy: block;
+}
+.worm-face.munching {
+  --eyes-open: none;
+  --eyes-happy: block;
+  --mouth-smile: none;
+  --mouth-munch: block;
+}
+.worm-face.yucking {
+  --mouth-smile: none;
+  --mouth-yuck: block;
+}
+
+@keyframes sway {
+  from { transform: translate(0px, -202px) rotate(-5deg); }
+  to   { transform: translate(0px, -202px) rotate(5deg); }
+}
+/* a mineral arrives and she chews it */
+@keyframes chew {
+  0%, 100% { transform: translate(0px, -202px) scale(1); }
+  50%      { transform: translate(0px, -202px) scale(1.07, 0.93); }
+}
+/* wrong letter: the vent stops, and she pulls down inside her tube for a moment */
+@keyframes duck {
+  0%   { transform: translate(0px, -202px) scale(1); }
+  20%  { transform: translate(0px, -166px) scale(0.5); }
+  64%  { transform: translate(0px, -166px) scale(0.5); }
+  100% { transform: translate(0px, -202px) scale(1); }
+}
+
+#scene .worm .plume, #scene .worm .plume-anchor,
+#start-worm .worm .plume {
+  animation: sway 4.6s ease-in-out infinite alternate;
+}
+/* the colony breathes out of step with itself */
+#scene .colony .worm:nth-of-type(2n) .plume { animation-duration: 5.6s; animation-delay: -1.4s; }
+#scene .colony .worm:nth-of-type(3n) .plume { animation-duration: 3.9s; animation-delay: -2.6s; }
+#scene .colony .worm:nth-of-type(5n) .plume { animation-duration: 6.2s; animation-delay: -0.7s; }
+
+#scene .hero .plume.munching { animation: chew 0.24s ease-in-out 4; }
+#scene .hero .plume.yucking,
+#scene .hero .plume-anchor.ducking { animation: duck 1.1s ease-in-out; }
+
+/* Spellworm, and the ten neighbours crowding round the vent */
+#scene .hero { transform: translate(418px, 378px) scale(0.88); }
+#scene .colony .w1  { transform: translate(600px, 368px) scale(0.52) rotate(-3deg); }
+#scene .colony .w2  { transform: translate(648px, 374px) scale(0.40) rotate(5deg); }
+#scene .colony .w3  { transform: translate(830px, 370px) scale(0.50) rotate(4deg); }
+#scene .colony .w4  { transform: translate(874px, 376px) scale(0.38) rotate(-5deg); }
+#scene .colony .w5  { transform: translate(912px, 368px) scale(0.30) rotate(7deg); }
+#scene .colony .w6  { transform: translate(688px, 384px) scale(0.26) rotate(-6deg); }
+#scene .colony .w7  { transform: translate(176px, 367px) scale(0.50) rotate(-4deg); }
+#scene .colony .w8  { transform: translate(234px, 374px) scale(0.36) rotate(6deg); }
+#scene .colony .w9  { transform: translate(124px, 378px) scale(0.30) rotate(7deg); }
+#scene .colony .w10 { transform: translate(302px, 370px) scale(0.44) rotate(-6deg); }
+
+/* the neighbours sit further back in the gloom */
+#scene .colony .worm {
+  --tube: #cfcabe;
+  --tube-shade: #a49b8b;
+  --tube-rim: #8d8474;
+  --frond: #a32b26;
+  --frond-lite: #d4594a;
+  opacity: 0.88;
+}
+
+/* ---------- the black smoker ---------- */
+
+/* The chimney's transform lives in CSS, not in the markup, so the "cough" keyframes
+   can carry the full transform without the two fighting (CSS replaces the attribute). */
+#vent-stack .chimney { transform: translate(736px, 368px) scale(1); }
+#vent-stack .chimney, #vent-stack .puff, #vent-stack .grit { transform-box: view-box; }
+
+#vent-stack .puff {
+  opacity: 0;
+  animation: puff-rise 4.2s linear infinite;
+  animation-delay: calc(var(--i) * -0.7s);
+}
+@keyframes puff-rise {
+  0%   { transform: translate(713px, 158px) scale(0.28); opacity: 0; }
+  14%  { opacity: 0.9; }
+  70%  { opacity: 0.55; }
+  100% { transform: translate(calc(713px + var(--dx)), -20px) scale(1.7); opacity: 0; }
+}
+
+/* flecks of sulfide riding up in the smoke — the minerals she is waiting for */
+#vent-stack .grit {
+  opacity: 0;
+  fill: #ffd98a;
+  animation: grit-rise 3.4s linear infinite;
+  animation-delay: calc(var(--i) * -0.85s);
+}
+@keyframes grit-rise {
+  0%   { transform: translate(713px, 160px) scale(0.2); opacity: 0; }
+  18%  { opacity: 0.95; }
+  100% { transform: translate(calc(713px + var(--dx)), 52px) scale(0.5); opacity: 0; }
+}
+
+/* a wrong letter makes the vent hiccup: the plume stops dead for a second */
+#vent-stack.stalled .puff, #vent-stack.stalled .grit { animation: none; opacity: 0; }
+#vent-stack.stalled .chimney { animation: cough 0.7s ease-in-out; }
+@keyframes cough {
+  0%, 100% { transform: translate(736px, 368px) scale(1); }
+  35%      { transform: translate(736px, 370px) scale(1.04, 0.97); }
+  70%      { transform: translate(736px, 369px) scale(0.98, 1.02); }
+}
+
+/* ---------- marine snow ---------- */
+
+#scene .flake {
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: drift 15s linear infinite;
+  animation-delay: calc(var(--i) * -0.95s);
+}
+@keyframes drift {
+  0%   { transform: translate(0, -60px); opacity: 0; }
+  12%  { opacity: 0.3; }
+  85%  { opacity: 0.22; }
+  100% { transform: translate(-26px, 240px); opacity: 0; }
+}
+
+/* ---------- start overlay art ---------- */
+
+#start-worm { width: clamp(220px, 46vw, 430px); }
+
+/* ---------- shared celebration scenery ---------- */
+
+#celebration .scene .floor { fill: #15202d; }
+#celebration .worm, #celebration .crab-wrap, #celebration .octo-wrap,
+#celebration .sub-wrap, #celebration .pod-wrap, #celebration .pw,
+#celebration .blast { transform-box: view-box; }
+
+#celebration .cb-heart, #celebration .cb-star, #celebration .cb-bubble,
+#celebration .cb-gem, #celebration .spark, #celebration .bpuff { opacity: 0; }
+
+#celebration .cb-bubble { stroke: #bfe8ff; }
+
+@keyframes heart-float {
+  0%   { opacity: 0; translate: 0 0; scale: 0.4; }
+  20%  { opacity: 1; scale: 1.1; }
+  100% { opacity: 0; translate: 0 -130px; scale: 1; }
+}
+@keyframes star-pop {
+  0%   { opacity: 0; scale: 0.2; rotate: -40deg; }
+  35%  { opacity: 1; scale: 1.25; rotate: 10deg; }
+  70%  { opacity: 1; scale: 1; rotate: 0deg; }
+  100% { opacity: 0; scale: 0.8; }
+}
+/* bubbles wobble as they go up, the way they actually do */
+@keyframes bubble-rise {
+  0%   { opacity: 0; translate: 0 0; scale: 0.5; }
+  15%  { opacity: 0.85; }
+  40%  { translate: 14px -90px; }
+  70%  { translate: -10px -190px; }
+  100% { opacity: 0; translate: 8px -280px; scale: 1.2; }
+}
+
+/* A radial burst: each sprite sits at a shared centre (--px,--py) and is thrown out
+   along its own angle (--a) for its own distance (--d) — one @keyframes, many sprites. */
+@keyframes burst {
+  0% {
+    transform: translate(var(--px), var(--py)) rotate(var(--a)) translate(0, 0) scale(0.25);
+    opacity: 0;
+  }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% {
+    transform: translate(var(--px), var(--py)) rotate(var(--a))
+               translate(0, calc(-1 * var(--d))) scale(1.05);
+    opacity: 0;
+  }
+}
+
+/* the host worm leans towards whoever has come to visit */
+@keyframes lean-right {
+  from { transform: translate(0px, -202px) rotate(0deg); }
+  to   { transform: translate(0px, -202px) rotate(36deg); }
+}
+@keyframes lean-left {
+  from { transform: translate(0px, -202px) rotate(0deg); }
+  to   { transform: translate(0px, -202px) rotate(-36deg); }
+}
+
+/* --- happy: a ghost crab comes to say hello --- */
+
+#scene-crab .host { transform: translate(232px, 472px) scale(1); }
+#scene-crab .crab-wrap { transform: translate(900px, 470px) scale(-1.4, 1.4); }
+
+/* it scuttles in sideways, the way crabs do, bobbing on every other step */
+#scene-crab.playing .crab-wrap { animation: crab-in 2.4s ease-out 0.3s forwards; }
+@keyframes crab-in {
+  0%   { transform: translate(900px, 470px) scale(-1.4, 1.4); }
+  16%  { transform: translate(816px, 458px) scale(-1.4, 1.4); }
+  32%  { transform: translate(732px, 470px) scale(-1.4, 1.4); }
+  48%  { transform: translate(648px, 458px) scale(-1.4, 1.4); }
+  64%  { transform: translate(564px, 470px) scale(-1.4, 1.4); }
+  80%  { transform: translate(490px, 458px) scale(-1.4, 1.4); }
+  92%  { transform: translate(436px, 470px) scale(-1.4, 1.4); }
+  100% { transform: translate(428px, 466px) scale(-1.4, 1.4); }
+}
+#scene-crab.playing .host .plume { animation: lean-right 1.1s ease-in-out 2.5s forwards; }
+
+#scene-crab.playing .cb-heart { animation: heart-float 2s ease-out forwards; }
+#scene-crab.playing .cb-heart.h1 { transform: translate(300px, 300px) scale(1.4); animation-delay: 3.1s; }
+#scene-crab.playing .cb-heart.h2 { transform: translate(370px, 274px) scale(1.9); animation-delay: 3.45s; }
+#scene-crab.playing .cb-heart.h3 { transform: translate(244px, 262px) scale(1.5); animation-delay: 3.8s; }
+#scene-crab.playing .cb-heart.h4 { transform: translate(430px, 290px) scale(1.6); animation-delay: 4.15s; }
+#scene-crab.playing .cb-bubble { animation: bubble-rise 3.4s ease-in-out infinite; }
+#scene-crab.playing .cb-bubble.b1 { transform: translate(650px, 430px) scale(1.6); animation-delay: 0.2s; }
+#scene-crab.playing .cb-bubble.b2 { transform: translate(718px, 446px) scale(1.1); animation-delay: 1.3s; }
+#scene-crab.playing .cb-bubble.b3 { transform: translate(96px, 430px) scale(2); animation-delay: 2.1s; }
+
+/* --- happy: a dumbo octopus flaps past --- */
+
+#scene-octopus .host { transform: translate(180px, 472px) scale(0.95); }
+#scene-octopus .octo-wrap { transform: translate(-200px, 320px) scale(0.8); }
+
+#scene-octopus.playing .octo-wrap { animation: octo-swim 5.6s ease-in-out 0.3s forwards; }
+@keyframes octo-swim {
+  0%   { transform: translate(-200px, 316px) scale(0.72) rotate(0deg); }
+  22%  { transform: translate(180px, 252px) scale(0.84) rotate(-7deg); }
+  42%  { transform: translate(370px, 322px) scale(0.92) rotate(9deg); }
+  60%  { transform: translate(540px, 246px) scale(0.86) rotate(-9deg); }
+  80%  { transform: translate(720px, 296px) scale(0.76) rotate(5deg); }
+  100% { transform: translate(1010px, 224px) scale(0.64) rotate(-4deg); }
+}
+/* her plume follows it all the way across */
+#scene-octopus.playing .host .plume { animation: watch-across 5.6s ease-in-out 0.3s forwards; }
+@keyframes watch-across {
+  0%   { transform: translate(0px, -202px) rotate(-22deg); }
+  30%  { transform: translate(0px, -202px) rotate(-4deg); }
+  70%  { transform: translate(0px, -202px) rotate(22deg); }
+  100% { transform: translate(0px, -202px) rotate(34deg); }
+}
+
+#scene-octopus.playing .cb-bubble { animation: bubble-rise 3.6s ease-in-out infinite; }
+#scene-octopus.playing .cb-bubble.b1 { transform: translate(120px, 440px) scale(1.7); animation-delay: 0.3s; }
+#scene-octopus.playing .cb-bubble.b2 { transform: translate(330px, 450px) scale(1.1); animation-delay: 1.1s; }
+#scene-octopus.playing .cb-bubble.b3 { transform: translate(520px, 442px) scale(2); animation-delay: 1.9s; }
+#scene-octopus.playing .cb-bubble.b4 { transform: translate(680px, 452px) scale(1.3); animation-delay: 2.6s; }
+#scene-octopus.playing .cb-bubble.b5 { transform: translate(420px, 446px) scale(1.8); animation-delay: 3.3s; }
+#scene-octopus.playing .cb-star { animation: star-pop 1.6s ease-out forwards; }
+#scene-octopus.playing .cb-star.s1 { transform: translate(300px, 210px) scale(1.2); animation-delay: 3.4s; }
+#scene-octopus.playing .cb-star.s2 { transform: translate(560px, 190px) scale(1.4); animation-delay: 3.9s; }
+
+/* --- happy: the Pompeii worms throw a party --- */
+
+#scene-pompeii .host { transform: translate(408px, 478px) scale(0.9); }
+#scene-pompeii .pw .pw-body { opacity: 0; }
+
+#scene-pompeii .p1 { transform: translate(92px, 470px) scale(1.5);  --d: 0.5s; }
+#scene-pompeii .p2 { transform: translate(210px, 478px) scale(1.2); --d: 0.9s; }
+#scene-pompeii .p3 { transform: translate(600px, 472px) scale(1.4); --d: 1.3s; }
+#scene-pompeii .p4 { transform: translate(714px, 480px) scale(1.1); --d: 1.7s; }
+#scene-pompeii .p5 { transform: translate(300px, 486px) scale(0.9); --d: 2.1s; }
+
+/* each one pops out of its tube in turn, then bobs for the rest of the party */
+#scene-pompeii.playing .pw .pw-body {
+  animation: pop-up 0.55s ease-out var(--d) forwards,
+             pw-bob 0.62s ease-in-out calc(var(--d) + 0.55s) infinite alternate;
+}
+@keyframes pop-up {
+  0%   { transform: translate(0px, -34px) scale(0.5); opacity: 0; }
+  55%  { transform: translate(0px, -80px) scale(1.12); opacity: 1; }
+  100% { transform: translate(0px, -70px) scale(1); opacity: 1; }
+}
+@keyframes pw-bob {
+  from { transform: translate(0px, -70px) rotate(-10deg); }
+  to   { transform: translate(0px, -77px) rotate(10deg); }
+}
+#scene-pompeii.playing .host .plume { animation: party-sway 0.62s ease-in-out 0.6s infinite alternate; }
+@keyframes party-sway {
+  from { transform: translate(0px, -202px) rotate(-13deg) scale(1); }
+  to   { transform: translate(0px, -208px) rotate(13deg) scale(1.03); }
+}
+
+#scene-pompeii.playing .cb-star { animation: star-pop 1.5s ease-out forwards; }
+#scene-pompeii.playing .cb-star.s1 { transform: translate(150px, 300px) scale(1.4); animation-delay: 1.4s; }
+#scene-pompeii.playing .cb-star.s2 { transform: translate(660px, 286px) scale(1.7); animation-delay: 1.8s; }
+#scene-pompeii.playing .cb-star.s3 { transform: translate(400px, 200px) scale(1.9); animation-delay: 2.2s; }
+#scene-pompeii.playing .cb-star.s4 { transform: translate(250px, 232px) scale(1.4); animation-delay: 2.6s; }
+#scene-pompeii.playing .cb-star.s5 { transform: translate(552px, 220px) scale(1.5); animation-delay: 3.0s; }
+#scene-pompeii.playing .cb-bubble { animation: bubble-rise 3.2s ease-in-out infinite; }
+#scene-pompeii.playing .cb-bubble.b1 { transform: translate(52px, 450px) scale(1.6); animation-delay: 0.4s; }
+#scene-pompeii.playing .cb-bubble.b2 { transform: translate(470px, 456px) scale(1.1); animation-delay: 1.2s; }
+#scene-pompeii.playing .cb-bubble.b3 { transform: translate(756px, 448px) scale(1.9); animation-delay: 2.0s; }
+#scene-pompeii.playing .cb-bubble.b4 { transform: translate(350px, 452px) scale(1.3); animation-delay: 2.8s; }
+
+/* --- happy: Alvin the submarine drops in --- */
+
+#scene-alvin .host { transform: translate(630px, 472px) scale(0.9); }
+#scene-alvin .sub-wrap { transform: translate(310px, 40px) scale(0.85); }
+
+#scene-alvin.playing .sub-wrap {
+  animation: dive 3.2s ease-out 0.2s forwards,
+             hover 2.2s ease-in-out 3.4s infinite alternate;
+}
+@keyframes dive {
+  0%   { transform: translate(310px, 30px) scale(0.85); }
+  70%  { transform: translate(306px, 272px) scale(0.85); }
+  86%  { transform: translate(310px, 292px) scale(0.85); }
+  100% { transform: translate(308px, 278px) scale(0.85); }
+}
+@keyframes hover {
+  from { transform: translate(308px, 278px) scale(0.85); }
+  to   { transform: translate(314px, 266px) scale(0.85); }
+}
+
+#scene-alvin .sub-wrap .arm { transform: translate(18px, 30px) rotate(0deg); }
+#scene-alvin.playing .sub-wrap .arm { animation: arm-wave 0.9s ease-in-out 3.4s 4 alternate; }
+@keyframes arm-wave {
+  from { transform: translate(18px, 30px) rotate(-40deg); }
+  to   { transform: translate(18px, 30px) rotate(14deg); }
+}
+
+#scene-alvin .beam { fill: #ffe9a8; opacity: 0; mix-blend-mode: screen; }
+#scene-alvin.playing .beam { animation: beam-on 0.8s ease-out 2.4s forwards; }
+@keyframes beam-on {
+  from { opacity: 0; }
+  to   { opacity: 0.2; }
+}
+#scene-alvin.playing .host .plume { animation: lean-left 1.1s ease-in-out 3.4s forwards; }
+
+#scene-alvin.playing .cb-bubble { animation: bubble-rise 3s ease-in-out infinite; }
+#scene-alvin.playing .cb-bubble.b1 { transform: translate(180px, 430px) scale(1.6); animation-delay: 3.4s; }
+#scene-alvin.playing .cb-bubble.b2 { transform: translate(244px, 444px) scale(1.1); animation-delay: 3.9s; }
+#scene-alvin.playing .cb-bubble.b3 { transform: translate(120px, 448px) scale(1.8); animation-delay: 4.4s; }
+#scene-alvin.playing .cb-bubble.b4 { transform: translate(740px, 440px) scale(1.3); animation-delay: 4.9s; }
+#scene-alvin.playing .cb-star { animation: star-pop 1.5s ease-out forwards; }
+#scene-alvin.playing .cb-star.s1 { transform: translate(490px, 210px) scale(1.7); animation-delay: 4.0s; }
+#scene-alvin.playing .cb-star.s2 { transform: translate(700px, 250px) scale(1.4); animation-delay: 4.4s; }
+#scene-alvin.playing .cb-star.s3 { transform: translate(140px, 236px) scale(1.5); animation-delay: 4.8s; }
+
+/* --- happy: a giant isopod rolls in like a marble --- */
+
+#scene-isopod .host { transform: translate(636px, 472px) scale(0.9); }
+#scene-isopod .pod-ball { transform: translate(-110px, 400px); }
+#scene-isopod .pod-wrap { transform: translate(400px, 466px) scale(1.3); opacity: 0; }
+
+#scene-isopod.playing .pod-ball { animation: pod-roll 2.3s ease-out 0.3s forwards; }
+@keyframes pod-roll {
+  0%   { transform: translate(-110px, 400px) scale(1.4) rotate(0deg); opacity: 0; }
+  8%   { opacity: 1; }
+  90%  { transform: translate(392px, 400px) scale(1.4) rotate(840deg); opacity: 1; }
+  100% { transform: translate(400px, 400px) scale(1.4) rotate(880deg); opacity: 0; }
+}
+/* it springs open where the ball stopped, then settles and wiggles its antennae */
+#scene-isopod.playing .pod-wrap {
+  animation: pod-unroll 0.9s ease-out 2.5s forwards,
+             pod-wiggle 0.66s ease-in-out 3.4s infinite alternate;
+}
+@keyframes pod-unroll {
+  0%   { transform: translate(400px, 466px) scale(0.6, 1.3); opacity: 0; }
+  20%  { opacity: 1; }
+  58%  { transform: translate(400px, 466px) scale(1.46, 1.16); opacity: 1; }
+  100% { transform: translate(400px, 466px) scale(1.3); opacity: 1; }
+}
+@keyframes pod-wiggle {
+  from { transform: translate(400px, 466px) scale(1.3) rotate(-2.5deg); }
+  to   { transform: translate(394px, 463px) scale(1.33) rotate(2.5deg); }
+}
+#scene-isopod.playing .host .plume { animation: lean-left 1s ease-in-out 2.6s forwards; }
+
+#scene-isopod.playing .cb-star { animation: star-pop 1.5s ease-out forwards; }
+#scene-isopod.playing .cb-star.s1 { transform: translate(300px, 296px) scale(1.2); animation-delay: 3.0s; }
+#scene-isopod.playing .cb-star.s2 { transform: translate(430px, 276px) scale(1.4); animation-delay: 3.4s; }
+#scene-isopod.playing .cb-star.s3 { transform: translate(200px, 260px); animation-delay: 3.8s; }
+#scene-isopod.playing .cb-star.s4 { transform: translate(520px, 250px) scale(1.1); animation-delay: 4.2s; }
+#scene-isopod.playing .cb-bubble { animation: bubble-rise 3.2s ease-in-out infinite; }
+#scene-isopod.playing .cb-bubble.b1 { transform: translate(120px, 444px); animation-delay: 0.6s; }
+#scene-isopod.playing .cb-bubble.b2 { transform: translate(720px, 450px) scale(0.8); animation-delay: 2.0s; }
+
+/* --- FINALE: the vent coughs up a rare manganese nodule --- */
+
+#scene-nodule .host { transform: translate(276px, 478px) scale(0.8); }
+#scene-nodule .prize { transform: translate(456px, 320px) scale(0.15); opacity: 0; }
+
+/* the blast, then the nodule rising out of the smoke on the warm water */
+#scene-nodule .bpuff { --px: 456px; --py: 318px; --d: 150px; }
+#scene-nodule.playing .bpuff { animation: burst 1.6s ease-out 0.9s forwards; }
+#scene-nodule .bpuff.q1 { --a: -30deg; --d: 176px; }
+#scene-nodule .bpuff.q2 { --a: -8deg;  --d: 150px; }
+#scene-nodule .bpuff.q3 { --a: 16deg;  --d: 164px; }
+#scene-nodule .bpuff.q4 { --a: 40deg;  --d: 132px; }
+
+#scene-nodule.playing .prize {
+  animation: prize-rise 2.4s ease-out 1.1s forwards,
+             prize-float 2s ease-in-out 3.5s infinite alternate;
+}
+@keyframes prize-rise {
+  0%   { transform: translate(456px, 320px) scale(0.15) rotate(0deg); opacity: 0; }
+  25%  { opacity: 1; }
+  100% { transform: translate(416px, 244px) scale(1.45) rotate(-22deg); opacity: 1; }
+}
+@keyframes prize-float {
+  from { transform: translate(416px, 244px) scale(1.45) rotate(-22deg); }
+  to   { transform: translate(426px, 226px) scale(1.52) rotate(-12deg); }
+}
+#scene-nodule .prize { filter: drop-shadow(0 0 22px rgba(190, 220, 255, 0.75)); }
+
+/* crystals shaken loose off the nodule, for her to eat later */
+#scene-nodule.playing .cb-gem { animation: star-pop 1.7s ease-out forwards; }
+#scene-nodule .cb-gem.m1 { transform: translate(330px, 214px) scale(1.5); animation-delay: 3.7s; }
+#scene-nodule .cb-gem.m2 { transform: translate(520px, 232px) scale(1.7); animation-delay: 4.0s; }
+#scene-nodule .cb-gem.m3 { transform: translate(482px, 158px) scale(1.4); animation-delay: 4.3s; }
+#scene-nodule .cb-gem.m4 { transform: translate(300px, 300px) scale(1.3); animation-delay: 4.6s; }
+
+/* she stretches and stretches, and gets it */
+#scene-nodule .reacher .plume { transform: translate(0px, -202px) rotate(4deg); }
+#scene-nodule.playing .reacher .plume { animation: reach 3.2s ease-in-out 0.6s forwards; }
+@keyframes reach {
+  0%   { transform: translate(0px, -202px) rotate(4deg) scale(1); }
+  40%  { transform: translate(0px, -206px) rotate(22deg) scale(1.02); }
+  72%  { transform: translate(0px, -210px) rotate(34deg) scale(1.05); }   /* nearly... */
+  86%  { transform: translate(0px, -212px) rotate(40deg) scale(1.07); }
+  100% { transform: translate(0px, -212px) rotate(37deg) scale(1.08); }   /* got it! */
+}
+
+#scene-nodule .spark { --px: 414px; --py: 248px; --d: 124px; }
+#scene-nodule.playing .spark { animation: burst 1.6s ease-out 3.5s forwards; }
+#scene-nodule .spark.g1 { --a:   0deg; }
+#scene-nodule .spark.g2 { --a:  60deg; --d: 146px; }
+#scene-nodule .spark.g3 { --a: 120deg; }
+#scene-nodule .spark.g4 { --a: 180deg; --d: 138px; }
+#scene-nodule .spark.g5 { --a: 240deg; }
+#scene-nodule .spark.g6 { --a: 300deg; --d: 152px; }
+
+#scene-nodule.playing .cb-star { animation: star-pop 1.6s ease-out forwards; }
+#scene-nodule.playing .cb-star.f1 { transform: translate(140px, 220px) scale(1.2); animation-delay: 3.8s; }
+#scene-nodule.playing .cb-star.f2 { transform: translate(660px, 250px) scale(1.4); animation-delay: 4.1s; }
+#scene-nodule.playing .cb-star.f3 { transform: translate(230px, 180px); animation-delay: 4.4s; }
+#scene-nodule.playing .cb-star.f4 { transform: translate(600px, 170px) scale(1.3); animation-delay: 4.7s; }
+#scene-nodule.playing .cb-star.f5 { transform: translate(420px, 150px) scale(1.5); animation-delay: 5.0s; }
+#scene-nodule.playing .cb-star.f6 { transform: translate(720px, 340px) scale(1.1); animation-delay: 5.3s; }
+
+/* --- happy: a vent eelpout comes over for a nose-to-nose --- */
+
+#celebration .eel-wrap, #celebration .yeti-wrap, #celebration .clam {
+  transform-box: view-box;
+}
+
+#scene-eelpout .host { transform: translate(224px, 474px) scale(0.92); }
+#scene-eelpout .eel-wrap { transform: translate(1120px, 300px) scale(-1.05, 1.05); }
+
+/* it noses in along a lazy S, then hangs in the water right in front of her */
+#scene-eelpout.playing .eel-wrap { animation: eel-swim 4.4s ease-out 0.3s forwards,
+                                              eel-hover 2.4s ease-in-out 4.7s infinite alternate; }
+@keyframes eel-swim {
+  0%   { transform: translate(1120px, 296px) scale(-1.05, 1.05) rotate(0deg); }
+  24%  { transform: translate(880px, 336px) scale(-1.05, 1.05) rotate(6deg); }
+  46%  { transform: translate(680px, 288px) scale(-1.05, 1.05) rotate(-6deg); }
+  68%  { transform: translate(506px, 330px) scale(-1.05, 1.05) rotate(5deg); }
+  88%  { transform: translate(386px, 300px) scale(-1.05, 1.05) rotate(-3deg); }
+  100% { transform: translate(362px, 310px) scale(-1.05, 1.05) rotate(0deg); }
+}
+@keyframes eel-hover {
+  from { transform: translate(362px, 310px) scale(-1.05, 1.05) rotate(-2deg); }
+  to   { transform: translate(370px, 296px) scale(-1.05, 1.05) rotate(2deg); }
+}
+#scene-eelpout.playing .host .plume { animation: lean-right 1.2s ease-in-out 4.2s forwards; }
+
+#scene-eelpout.playing .cb-heart { animation: heart-float 2s ease-out forwards; }
+#scene-eelpout.playing .cb-heart.h1 { transform: translate(288px, 268px) scale(1.5); animation-delay: 5.0s; }
+#scene-eelpout.playing .cb-heart.h2 { transform: translate(360px, 244px) scale(1.9); animation-delay: 5.35s; }
+#scene-eelpout.playing .cb-heart.h3 { transform: translate(226px, 240px) scale(1.4); animation-delay: 5.7s; }
+#scene-eelpout.playing .cb-bubble { animation: bubble-rise 3.4s ease-in-out infinite; }
+#scene-eelpout.playing .cb-bubble.b1 { transform: translate(120px, 436px) scale(1.7); animation-delay: 0.4s; }
+#scene-eelpout.playing .cb-bubble.b2 { transform: translate(640px, 448px) scale(1.2); animation-delay: 1.6s; }
+#scene-eelpout.playing .cb-bubble.b3 { transform: translate(470px, 440px) scale(2); animation-delay: 2.8s; }
+
+/* --- happy: a yeti crab dances to farm its fur --- */
+
+#scene-yeticrab .host { transform: translate(180px, 476px) scale(0.9); }
+#scene-yeticrab .yeti-wrap { transform: translate(506px, 470px) scale(1.55); }
+
+/* Kiwa really does wave its arms to feed the bacteria it wears, so: a dance. */
+#scene-yeticrab .yeti-wrap .arm-l { transform: translate(-40px, -58px) scale(-1, 1) rotate(28deg); }
+#scene-yeticrab .yeti-wrap .arm-r { transform: translate(40px, -58px) rotate(28deg); }
+#scene-yeticrab.playing .yeti-wrap { animation: yeti-bop 0.62s ease-in-out 0.3s infinite alternate; }
+#scene-yeticrab.playing .yeti-wrap .arm-l { animation: yeti-wave-l 0.62s ease-in-out 0.3s infinite alternate; }
+#scene-yeticrab.playing .yeti-wrap .arm-r { animation: yeti-wave-r 0.62s ease-in-out 0.61s infinite alternate; }
+
+@keyframes yeti-bop {
+  from { transform: translate(506px, 470px) scale(1.55) rotate(-3deg); }
+  to   { transform: translate(506px, 462px) scale(1.58) rotate(3deg); }
+}
+/* both arms stay out in a V — swung inwards they crossed over the crab's own head */
+@keyframes yeti-wave-l {
+  from { transform: translate(-40px, -58px) scale(-1, 1) rotate(10deg); }
+  to   { transform: translate(-40px, -58px) scale(-1, 1) rotate(46deg); }
+}
+@keyframes yeti-wave-r {
+  from { transform: translate(40px, -58px) rotate(10deg); }
+  to   { transform: translate(40px, -58px) rotate(46deg); }
+}
+#scene-yeticrab.playing .host .plume { animation: party-sway 0.62s ease-in-out 0.3s infinite alternate; }
+
+#scene-yeticrab.playing .cb-star { animation: star-pop 1.5s ease-out forwards; }
+#scene-yeticrab.playing .cb-star.s1 { transform: translate(300px, 260px) scale(1.5); animation-delay: 1.6s; }
+#scene-yeticrab.playing .cb-star.s2 { transform: translate(680px, 244px) scale(1.7); animation-delay: 2.1s; }
+#scene-yeticrab.playing .cb-star.s3 { transform: translate(460px, 190px) scale(1.9); animation-delay: 2.6s; }
+#scene-yeticrab.playing .cb-star.s4 { transform: translate(170px, 216px) scale(1.4); animation-delay: 3.1s; }
+#scene-yeticrab.playing .cb-bubble { animation: bubble-rise 3.2s ease-in-out infinite; }
+#scene-yeticrab.playing .cb-bubble.b1 { transform: translate(90px, 444px) scale(1.6); animation-delay: 0.5s; }
+#scene-yeticrab.playing .cb-bubble.b2 { transform: translate(700px, 452px) scale(1.2); animation-delay: 1.7s; }
+#scene-yeticrab.playing .cb-bubble.b3 { transform: translate(380px, 448px) scale(1.9); animation-delay: 2.9s; }
+
+/* --- happy: the giant clams sing --- */
+
+/* Each clam is placed at its hinge, so the valves just rotate about (0,0): the top one
+   forwards, the mirrored bottom one backwards. */
+#scene-clams .host { transform: translate(392px, 478px) scale(0.86); }
+#scene-clams .clam .bottom { transform: scale(1, -1); }
+#scene-clams .clam .valve, #scene-clams .clam .flesh { transform-box: view-box; }
+
+#scene-clams .c1 { transform: translate(54px, 430px) scale(1) rotate(-10deg);    --d: 0.6s; }
+#scene-clams .c2 { transform: translate(196px, 440px) scale(0.82) rotate(7deg);  --d: 1.1s; }
+#scene-clams .c3 { transform: translate(528px, 426px) scale(1.12) rotate(-8deg); --d: 1.6s; }
+#scene-clams .c4 { transform: translate(676px, 442px) scale(0.88) rotate(8deg);  --d: 2.1s; }
+
+#scene-clams.playing .clam .top {
+  animation: gape-top 1.5s ease-in-out var(--d) infinite;
+}
+#scene-clams.playing .clam .bottom {
+  animation: gape-bottom 1.5s ease-in-out var(--d) infinite;
+}
+@keyframes gape-top {
+  0%, 100% { transform: rotate(0deg); }
+  40%      { transform: rotate(-26deg); }
+}
+@keyframes gape-bottom {
+  0%, 100% { transform: scale(1, -1) rotate(0deg); }
+  40%      { transform: scale(1, -1) rotate(-26deg); }
+}
+#scene-clams.playing .host .plume { animation: conduct 1.5s ease-in-out 0.6s infinite; }
+@keyframes conduct {
+  0%, 100% { transform: translate(0px, -202px) rotate(-16deg); }
+  50%      { transform: translate(0px, -206px) rotate(16deg); }
+}
+
+#scene-clams.playing .cb-bubble { animation: bubble-rise 2.6s ease-in-out infinite; }
+#scene-clams.playing .cb-bubble.b1 { transform: translate(120px, 430px) scale(1.4); animation-delay: 0.9s; }
+#scene-clams.playing .cb-bubble.b2 { transform: translate(248px, 452px) scale(1.1); animation-delay: 1.4s; }
+#scene-clams.playing .cb-bubble.b3 { transform: translate(608px, 428px) scale(1.6); animation-delay: 1.9s; }
+#scene-clams.playing .cb-bubble.b4 { transform: translate(724px, 450px) scale(1.2); animation-delay: 2.4s; }
+#scene-clams.playing .cb-star { animation: star-pop 1.5s ease-out forwards; }
+#scene-clams.playing .cb-star.s1 { transform: translate(300px, 250px) scale(1.5); animation-delay: 2.6s; }
+#scene-clams.playing .cb-star.s2 { transform: translate(520px, 226px) scale(1.7); animation-delay: 3.1s; }
+#scene-clams.playing .cb-star.s3 { transform: translate(400px, 186px) scale(1.9); animation-delay: 3.6s; }
+</style>
+</head>
+<body>
+
+<!-- ======= shared art (referenced everywhere via <use>) =======
+     A giant tube worm is drawn in two pieces so scenes can articulate it:
+       #worm-tube   — the white tube, origin at the seafloor, opening at y = -202
+       #worm-plume  — the red fronds and the face, pivot at the tube's RIM
+     A scene places the pieces at this fixed local offset (see theme.css .worm):
+       plume: translate(0, -202)
+     The plume is drawn BEFORE the tube so the tube occludes it — that is what makes
+     the startled duck read as the worm pulling down inside its tube.
+     #worm-proto glues both together for static art. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+
+    <linearGradient id="water-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"    stop-color="#08354f"/>
+      <stop offset="0.5"  stop-color="#041d31"/>
+      <stop offset="1"    stop-color="#020d17"/>
+    </linearGradient>
+    <radialGradient id="warm-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ff9a3c" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#ff9a3c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lamp-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff3c4" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#fff3c4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nodule-grad" cx="36%" cy="30%" r="76%">
+      <stop offset="0"   stop-color="#6f7fa6"/>
+      <stop offset="0.5" stop-color="#3a3a58"/>
+      <stop offset="1"   stop-color="#191a2c"/>
+    </radialGradient>
+
+    <!-- ---------- the giant tube worm ---------- -->
+
+    <!-- One frond, base at the origin, growing straight up. A pointed blade with a
+         fringe of barbs drawn BEHIND it, so only the barb tips show past the silhouette
+         and the whole thing reads as a feather rather than a spike. -->
+    <g id="frond-blade">
+      <g stroke="var(--frond, #d6392f)" stroke-width="3.6" stroke-linecap="round">
+        <path d="M 0,-80 L -10,-71 M 0,-80 L 10,-71"/>
+        <path d="M 0,-66 L -14,-56 M 0,-66 L 14,-56"/>
+        <path d="M 0,-52 L -16,-42 M 0,-52 L 16,-42"/>
+        <path d="M 0,-38 L -17,-28 M 0,-38 L 17,-28"/>
+        <path d="M 0,-24 L -16,-14 M 0,-24 L 16,-14"/>
+        <path d="M 0,-10 L -14,-1  M 0,-10 L 14,-1"/>
+      </g>
+      <path d="M -8,2 C -12,-30 -10,-62 0,-92 C 10,-62 12,-30 8,2 Z" fill="var(--frond, #d6392f)"/>
+      <path d="M 0,-84 L 0,0" stroke="var(--frond-lite, #ff7a63)" stroke-width="2.6"
+        stroke-linecap="round" opacity="0.68"/>
+      <g stroke="var(--frond-lite, #ff7a63)" stroke-width="2" stroke-linecap="round" opacity="0.5">
+        <path d="M 0,-66 L -7,-58 M 0,-66 L 7,-58"/>
+        <path d="M 0,-50 L -8,-42 M 0,-50 L 8,-42"/>
+        <path d="M 0,-34 L -8,-26 M 0,-34 L 8,-26"/>
+        <path d="M 0,-18 L -7,-10 M 0,-18 L 7,-10"/>
+      </g>
+    </g>
+
+    <!-- the plume: fronds + the collar that carries the face. Pivot at the tube rim. -->
+    <g id="worm-plume">
+      <g transform="translate(0,-24)">
+        <use href="#frond-blade" transform="rotate(-50) scale(0.82)"/>
+        <use href="#frond-blade" transform="rotate(-33) scale(0.92)"/>
+        <use href="#frond-blade" transform="rotate(-16) scale(1.04)"/>
+        <use href="#frond-blade" transform="rotate(0)   scale(1.1)"/>
+        <use href="#frond-blade" transform="rotate(16)  scale(1.04)"/>
+        <use href="#frond-blade" transform="rotate(33)  scale(0.92)"/>
+        <use href="#frond-blade" transform="rotate(50)  scale(0.82)"/>
+      </g>
+      <ellipse cx="0" cy="-18" rx="19" ry="21" fill="var(--frond, #d6392f)"/>
+      <ellipse cx="-3" cy="-23" rx="13" ry="13" fill="var(--frond-lite, #ff7a63)" opacity="0.4"/>
+
+      <!-- eyes: open (the face only appears on a .worm-face element) -->
+      <g style="display: var(--eyes-open, none)">
+        <circle cx="-7.5" cy="-26" r="5.4" fill="#fdf6ec"/>
+        <circle cx="7.5"  cy="-26" r="5.4" fill="#fdf6ec"/>
+        <circle cx="-6.6" cy="-26.6" r="2.7" fill="#2a1414"/>
+        <circle cx="8.4"  cy="-26.6" r="2.7" fill="#2a1414"/>
+        <circle cx="-5.8" cy="-27.8" r="1" fill="#fff"/>
+        <circle cx="9.2"  cy="-27.8" r="1" fill="#fff"/>
+      </g>
+      <!-- eyes: happy (closed arcs) -->
+      <g style="display: var(--eyes-happy, none)"
+         stroke="#2a1414" stroke-width="2.6" stroke-linecap="round" fill="none">
+        <path d="M -12,-26 Q -7.5,-32 -3,-26"/>
+        <path d="M 3,-26 Q 7.5,-32 12,-26"/>
+      </g>
+      <!-- mouths -->
+      <path style="display: var(--mouth-smile, none)" d="M -6,-13 Q 0,-6 6,-13"
+        stroke="#7d1d16" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+      <g style="display: var(--mouth-munch, none)">
+        <ellipse cx="0" cy="-11" rx="7.6" ry="6.4" fill="#5e1510"/>
+        <ellipse cx="0" cy="-8.6" rx="4.4" ry="2.8" fill="#ff9d94"/>
+      </g>
+      <g style="display: var(--mouth-yuck, none)">
+        <path d="M -8,-12 Q -4,-17 0,-12 Q 4,-7 8,-12" stroke="#7d1d16" stroke-width="2.4"
+          stroke-linecap="round" fill="none"/>
+      </g>
+    </g>
+
+    <!-- the chitin tube: origin on the seafloor, opening at y = -202 -->
+    <g id="worm-tube">
+      <path d="M -20,0 C -22,-64 -18,-140 -13,-202 L 13,-202 C 18,-140 22,-64 20,0 Z"
+        fill="var(--tube, #f3eee2)"/>
+      <path d="M 4,0 C 7,-64 9,-140 10,-202 L 13,-202 C 18,-140 22,-64 20,0 Z"
+        fill="var(--tube-shade, #cdc3b0)"/>
+      <g stroke="var(--tube-shade, #cdc3b0)" stroke-width="2.2" fill="none" opacity="0.8">
+        <path d="M -19,-30  Q 0,-24  19,-30"/>
+        <path d="M -18,-66  Q 0,-60  18,-66"/>
+        <path d="M -17,-104 Q 0,-98  17,-104"/>
+        <path d="M -15,-142 Q 0,-136 15,-142"/>
+        <path d="M -14,-174 Q 0,-168 14,-174"/>
+      </g>
+      <ellipse cx="0" cy="-202" rx="13" ry="4.8" fill="var(--tube-rim, #b3a893)"/>
+      <ellipse cx="0" cy="-3" rx="27" ry="10" fill="var(--tube-foot, #59473a)"/>
+    </g>
+
+    <!-- the whole worm in one piece, for static art -->
+    <g id="worm-proto">
+      <use href="#worm-plume" transform="translate(0,-202)"/>
+      <use href="#worm-tube"/>
+    </g>
+
+    <!-- ---------- the vent ---------- -->
+
+    <!-- Black smoker chimney: origin at its base, the mouth at about (-22, -212).
+         Craggy and top-heavy, the way sulfide chimneys actually grow. -->
+    <g id="vent-proto">
+      <!-- the main spire -->
+      <path d="M -80,0 C -64,-42 -52,-80 -46,-120 C -42,-152 -48,-184 -40,-208
+               L -6,-214 C 0,-182 6,-150 12,-120 C 20,-78 42,-36 66,0 Z" fill="#1b1622"/>
+      <!-- the lit left face -->
+      <path d="M -80,0 C -64,-42 -52,-80 -46,-120 C -42,-152 -48,-184 -40,-208
+               L -24,-211 C -24,-176 -26,-142 -24,-116 C -22,-76 -20,-36 -18,0 Z"
+        fill="#2c2438"/>
+      <!-- a shorter second chimney, as these things always come in clusters -->
+      <path d="M 24,0 C 34,-30 44,-56 48,-86 L 74,-90 C 76,-58 84,-28 96,0 Z" fill="#141019"/>
+      <ellipse cx="61" cy="-89" rx="13" ry="5" fill="#0a0810"/>
+      <!-- knobbly sulfide crust down the flanks -->
+      <g fill="#6d4630" opacity="0.7">
+        <ellipse cx="-38" cy="-186" rx="14" ry="7" transform="rotate(-12 -38 -186)"/>
+        <ellipse cx="-4" cy="-176" rx="11" ry="6" transform="rotate(14 -4 -176)"/>
+        <ellipse cx="-46" cy="-132" rx="13" ry="7"/>
+        <ellipse cx="8" cy="-120" rx="10" ry="6"/>
+        <ellipse cx="-58" cy="-62" rx="15" ry="8" transform="rotate(-20 -58 -62)"/>
+        <ellipse cx="34" cy="-46" rx="12" ry="7" transform="rotate(22 34 -46)"/>
+      </g>
+      <g fill="#c98a3c" opacity="0.45">
+        <circle cx="-40" cy="-160" r="4"/>
+        <circle cx="0" cy="-146" r="3.4"/>
+        <circle cx="-52" cy="-98" r="3.6"/>
+        <circle cx="20" cy="-72" r="3"/>
+      </g>
+      <!-- the orifice, glowing with 350-degree water -->
+      <ellipse cx="-23" cy="-211" rx="20" ry="7.5" fill="#0a0810"/>
+      <ellipse cx="-23" cy="-212" rx="13" ry="4.6" fill="#a8461a"/>
+      <ellipse cx="-23" cy="-213" rx="7" ry="2.4" fill="#ffb457"/>
+    </g>
+
+    <path id="smoke-puff" fill="#0f0b16"
+      d="M 0,-26 C 20,-30 34,-14 30,4 C 40,10 36,28 20,28 C 10,38 -12,36 -18,24
+         C -36,24 -40,4 -28,-6 C -32,-22 -14,-34 0,-26 Z"/>
+
+    <!-- ---------- the minerals the vent hands out ---------- -->
+
+    <!-- one crystal chunk; the colour comes from whoever wraps it -->
+    <g id="mineral-shape">
+      <path d="M -16,-2 L -6,-20 L 10,-22 L 20,-6 L 12,14 L -8,16 Z"/>
+      <path d="M -6,-20 L 2,-4 L 20,-6" fill="none" stroke="rgba(255,255,255,0.55)"
+        stroke-width="2.2" stroke-linejoin="round"/>
+      <path d="M 2,-4 L -8,16" fill="none" stroke="rgba(0,0,0,0.3)" stroke-width="2.2"/>
+    </g>
+    <g id="mineral-pyrite" fill="#f0cc55">
+      <use href="#mineral-shape"/>
+      <circle cx="-8" cy="-10" r="2.6" fill="#fff8d8"/>
+    </g>
+    <g id="mineral-copper" fill="#c07ad0">
+      <use href="#mineral-shape"/>
+      <circle cx="-8" cy="-10" r="2.6" fill="#ffe0ff"/>
+    </g>
+    <g id="mineral-barite" fill="#9fd8ee">
+      <use href="#mineral-shape"/>
+      <circle cx="-8" cy="-10" r="2.6" fill="#f0fdff"/>
+    </g>
+
+    <!-- the rare prize: a polymetallic manganese nodule -->
+    <g id="nodule-proto">
+      <circle r="46" fill="url(#nodule-grad)"/>
+      <g fill="#4a4a6d" opacity="0.8">
+        <circle cx="-16" cy="-14" r="13"/>
+        <circle cx="14" cy="-20" r="9"/>
+        <circle cx="20" cy="10" r="14"/>
+        <circle cx="-12" cy="20" r="11"/>
+        <circle cx="-30" cy="6" r="8"/>
+      </g>
+      <!-- an oily rainbow sheen, the way a wet nodule looks in the lights -->
+      <g opacity="0.55">
+        <path d="M -40,-18 A 46 46 0 0 1 -6,-45" stroke="#7fe0d0" stroke-width="7" fill="none"/>
+        <path d="M -30,-32 A 46 46 0 0 1 14,-44" stroke="#9db6ff" stroke-width="6" fill="none"/>
+        <path d="M 24,-38 A 46 46 0 0 1 44,-8" stroke="#e59bff" stroke-width="5" fill="none"/>
+      </g>
+      <ellipse cx="-18" cy="-24" rx="11" ry="6" fill="#dfe7ff" opacity="0.5"
+        transform="rotate(-28 -18 -24)"/>
+    </g>
+
+    <!-- ---------- the neighbours ---------- -->
+
+    <!-- ghost crab: feet at the origin, facing right; the claws wave by themselves -->
+    <g id="crab-proto">
+      <g stroke="#e8d9cf" stroke-width="6" fill="none" stroke-linecap="round">
+        <path d="M -20,-34 C -44,-28 -58,-14 -62,0"/>
+        <path d="M -12,-36 C -34,-24 -44,-10 -46,2"/>
+        <path d="M 12,-36 C 30,-24 40,-10 42,2"/>
+        <path d="M 20,-34 C 44,-28 56,-14 60,0"/>
+      </g>
+      <g stroke="#f6eae1" stroke-width="6" fill="none" stroke-linecap="round">
+        <path d="M -16,-40 C -40,-34 -54,-20 -58,-6"/>
+        <path d="M 16,-40 C 40,-34 52,-20 56,-6"/>
+      </g>
+      <!-- carapace -->
+      <ellipse cx="0" cy="-48" rx="42" ry="28" fill="#f6eae1"/>
+      <path d="M -42,-50 C -22,-66 22,-66 42,-50 C 22,-58 -22,-58 -42,-50 Z" fill="#fffaf5"/>
+      <ellipse cx="0" cy="-42" rx="28" ry="15" fill="#e4cfc2" opacity="0.6"/>
+      <!-- eyestalks -->
+      <g>
+        <rect x="-15" y="-90" width="6" height="26" rx="3" fill="#f6eae1"/>
+        <rect x="9" y="-90" width="6" height="26" rx="3" fill="#f6eae1"/>
+        <circle cx="-12" cy="-92" r="8" fill="#2a2030"/>
+        <circle cx="12" cy="-92" r="8" fill="#2a2030"/>
+        <circle cx="-14" cy="-95" r="2.6" fill="#fff"/>
+        <circle cx="10" cy="-95" r="2.6" fill="#fff"/>
+      </g>
+      <path d="M -10,-38 Q 0,-30 10,-38" stroke="#b79c8c" stroke-width="2.6"
+        stroke-linecap="round" fill="none"/>
+      <!-- claws: a palm with two diverging fingers, waving on their own inside the proto -->
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 -44 -58; -22 -44 -58; 0 -44 -58" dur="0.95s" repeatCount="indefinite"/>
+        <path d="M -44,-58 C -54,-63 -61,-68 -66,-73" stroke="#f6eae1" stroke-width="17"
+          fill="none" stroke-linecap="round"/>
+        <path d="M -72,-70 C -92,-74 -110,-82 -122,-90 C -110,-99 -90,-96 -74,-88 Z" fill="#e4d2c5"/>
+        <ellipse cx="-84" cy="-82" rx="27" ry="21" transform="rotate(-28 -84 -82)" fill="#fffaf5"/>
+        <path d="M -90,-94 C -106,-104 -120,-114 -128,-122 C -116,-126 -98,-114 -84,-100 Z" fill="#fffaf5"/>
+      </g>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 44 -58; 18 44 -58; 0 44 -58" dur="0.95s" begin="0.3s" repeatCount="indefinite"/>
+        <path d="M 44,-58 C 54,-63 61,-68 66,-73" stroke="#f6eae1" stroke-width="17"
+          fill="none" stroke-linecap="round"/>
+        <path d="M 72,-70 C 92,-74 110,-82 122,-90 C 110,-99 90,-96 74,-88 Z" fill="#e4d2c5"/>
+        <ellipse cx="84" cy="-82" rx="27" ry="21" transform="rotate(28 84 -82)" fill="#fffaf5"/>
+        <path d="M 90,-94 C 106,-104 120,-114 128,-122 C 116,-126 98,-114 84,-100 Z" fill="#fffaf5"/>
+      </g>
+    </g>
+
+    <!-- Dumbo octopus: origin in the middle of the bell, facing right. The fins are the
+         whole point of the animal, so they are wide, low and almost horizontal — pointed
+         up they read as rabbit ears. They flap by themselves inside the proto. -->
+    <g id="octo-proto">
+      <!-- the webbed skirt of arms, scalloped where the web hangs between them -->
+      <path d="M -64,-6 C -78,38 -62,84 -36,100 C -28,82 -21,88 -13,102
+               C -4,86 4,86 13,102 C 21,88 28,82 36,100 C 62,84 78,38 64,-6 Z"
+        fill="#b98fd6"/>
+      <g stroke="#a67bc6" stroke-width="3" fill="none" opacity="0.8">
+        <path d="M -36,8 C -34,46 -34,74 -36,96"/>
+        <path d="M -13,12 C -13,52 -13,80 -13,98"/>
+        <path d="M 13,12 C 13,52 13,80 13,98"/>
+        <path d="M 36,8 C 34,46 34,74 36,96"/>
+      </g>
+      <!-- arm tips curling out from under the web -->
+      <g stroke="#c9a3e2" stroke-width="8" fill="none" stroke-linecap="round">
+        <path d="M -36,96 C -44,106 -52,108 -58,104"/>
+        <path d="M -13,102 C -15,114 -21,120 -28,120"/>
+        <path d="M 13,102 C 15,114 21,120 28,120"/>
+        <path d="M 36,96 C 44,106 52,108 58,104"/>
+      </g>
+      <!-- mantle -->
+      <ellipse cx="0" cy="-12" rx="60" ry="50" fill="#d3a9e8"/>
+      <ellipse cx="-16" cy="-30" rx="27" ry="18" fill="#eccdf7" opacity="0.7"/>
+      <!-- the dumbo ears -->
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 -50 -26; -26 -50 -26; 0 -50 -26" dur="1.1s" repeatCount="indefinite"/>
+        <path d="M -50,-34 C -84,-58 -128,-52 -140,-26 C -130,4 -84,8 -50,-12 Z" fill="#c088dd"/>
+        <path d="M -56,-30 C -84,-46 -116,-42 -126,-26" stroke="#dcb4ef" stroke-width="5"
+          fill="none" stroke-linecap="round" opacity="0.7"/>
+      </g>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 50 -26; 26 50 -26; 0 50 -26" dur="1.1s" repeatCount="indefinite"/>
+        <path d="M 50,-34 C 84,-58 128,-52 140,-26 C 130,4 84,8 50,-12 Z" fill="#c088dd"/>
+        <path d="M 56,-30 C 84,-46 116,-42 126,-26" stroke="#dcb4ef" stroke-width="5"
+          fill="none" stroke-linecap="round" opacity="0.7"/>
+      </g>
+      <!-- face -->
+      <circle cx="-22" cy="-6" r="10" fill="#2b1b34"/>
+      <circle cx="22" cy="-6" r="10" fill="#2b1b34"/>
+      <circle cx="-24" cy="-10" r="3.6" fill="#fff"/>
+      <circle cx="20" cy="-10" r="3.6" fill="#fff"/>
+      <path d="M -10,14 Q 0,23 10,14" stroke="#7d5a91" stroke-width="3.2"
+        stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- Pompeii worm: a fleecy grey worm leaning out of its crusty little chimney.
+         Origin at the seafloor; the tube's rim is at y = -78. -->
+    <g id="pompeii-tube">
+      <path d="M -14,0 C -15,-30 -12,-58 -9,-78 L 10,-75 C 12,-50 14,-26 15,0 Z" fill="#6a5240"/>
+      <path d="M 4,0 C 6,-32 8,-54 9,-76 L 10,-75 C 12,-50 14,-26 15,0 Z" fill="#4b382a"/>
+      <g fill="#8a6a4a" opacity="0.7">
+        <circle cx="-9" cy="-54" r="4"/><circle cx="7" cy="-38" r="3.4"/>
+        <circle cx="-7" cy="-22" r="3.6"/>
+      </g>
+      <ellipse cx="0" cy="-77" rx="10.5" ry="4" fill="#3b2b20"/>
+    </g>
+    <g id="pompeii-worm">
+      <!-- the grey bacterial fleece it wears on its back -->
+      <path d="M -13,12 C -17,-16 -13,-42 0,-58 C 13,-42 17,-16 13,12 Z" fill="#b3ada6"/>
+      <g fill="#dcd7d0">
+        <circle cx="-10" cy="-2" r="6"/>   <circle cx="9" cy="-10" r="5.6"/>
+        <circle cx="-9" cy="-22" r="5.4"/> <circle cx="8" cy="-30" r="5"/>
+        <circle cx="-4" cy="-42" r="4.6"/> <circle cx="3" cy="-14" r="4"/>
+      </g>
+      <!-- red feathery head plumes -->
+      <g stroke="#e2504a" stroke-width="6" fill="none" stroke-linecap="round">
+        <path d="M 0,-54 C -12,-68 -20,-76 -26,-82"/>
+        <path d="M 0,-54 C -7,-72 -7,-82 -6,-90"/>
+        <path d="M 0,-54 C 4,-72 6,-82 8,-90"/>
+        <path d="M 0,-54 C 12,-68 20,-74 27,-80"/>
+      </g>
+      <g stroke="#ff8078" stroke-width="2.4" fill="none" stroke-linecap="round" opacity="0.7">
+        <path d="M -14,-68 L -20,-66 M -5,-76 L -10,-76 M 5,-76 L 10,-76 M 15,-66 L 21,-65"/>
+      </g>
+      <circle cx="0" cy="-54" r="12" fill="#e2504a"/>
+      <circle cx="-4.6" cy="-56" r="3.2" fill="#fdf6ec"/>
+      <circle cx="4.6" cy="-56" r="3.2" fill="#fdf6ec"/>
+      <circle cx="-4" cy="-56.6" r="1.7" fill="#2a1414"/>
+      <circle cx="5.2" cy="-56.6" r="1.7" fill="#2a1414"/>
+      <path d="M -4,-47 Q 0,-43 4,-47" stroke="#7d1d16" stroke-width="2"
+        stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- giant isopod: feet at the origin, facing right -->
+    <g id="isopod-proto">
+      <g stroke="#b99a63" stroke-width="5" fill="none" stroke-linecap="round">
+        <path d="M -52,-22 L -62,0"/><path d="M -32,-22 L -40,0"/>
+        <path d="M -12,-22 L -18,0"/><path d="M 8,-22 L 4,0"/>
+        <path d="M 28,-22 L 26,0"/><path d="M 46,-22 L 48,0"/>
+      </g>
+      <!-- tail fan -->
+      <path d="M -54,-30 C -84,-34 -100,-24 -104,-10 C -86,-6 -64,-12 -54,-18 Z" fill="#c9a96c"/>
+      <g stroke="#a98a52" stroke-width="2.4" fill="none">
+        <path d="M -58,-28 L -98,-20"/><path d="M -58,-22 L -94,-12"/>
+      </g>
+      <!-- armoured segments, back to front -->
+      <g fill="#dcbd7c" stroke="#b1914f" stroke-width="2">
+        <path d="M -58,-46 C -42,-56 -26,-56 -22,-46 L -22,-22 C -34,-16 -50,-16 -58,-24 Z"/>
+        <path d="M -38,-50 C -22,-62 -4,-62 0,-50 L 0,-22 C -12,-16 -28,-16 -38,-24 Z"/>
+        <path d="M -16,-53 C 0,-66 18,-66 22,-53 L 22,-22 C 10,-16 -6,-16 -16,-24 Z"/>
+        <path d="M 6,-53 C 22,-66 40,-66 44,-53 L 44,-22 C 32,-16 16,-16 6,-24 Z"/>
+      </g>
+      <!-- head -->
+      <path d="M 30,-52 C 46,-64 66,-60 74,-44 C 78,-32 70,-20 54,-18 C 40,-17 30,-24 30,-34 Z"
+        fill="#e7ca8e" stroke="#b1914f" stroke-width="2"/>
+      <circle cx="60" cy="-44" r="7.5" fill="#241a12"/>
+      <circle cx="58" cy="-46.5" r="2.4" fill="#fff"/>
+      <circle cx="44" cy="-48" r="5.5" fill="#241a12"/>
+      <g stroke="#c9a96c" stroke-width="4.5" fill="none" stroke-linecap="round">
+        <path d="M 70,-48 C 88,-56 100,-66 106,-78"/>
+        <path d="M 72,-38 C 92,-40 106,-46 116,-56"/>
+      </g>
+      <path d="M 56,-26 Q 64,-22 70,-28" stroke="#a98a52" stroke-width="2.4"
+        stroke-linecap="round" fill="none"/>
+    </g>
+
+    <!-- the same isopod, rolled into a ball. Origin at the centre so it can roll. -->
+    <g id="isopod-ball">
+      <circle r="44" fill="#dcbd7c"/>
+      <path d="M 0,-44 A 44 44 0 0 1 0,44 A 30 30 0 0 0 0,-44 Z" fill="#e7ca8e"/>
+      <g stroke="#b1914f" stroke-width="2.6" fill="none">
+        <path d="M -42,-12 A 44 44 0 0 0 -30,32"/>
+        <path d="M -30,-32 A 44 44 0 0 0 -34,26"/>
+        <path d="M -12,-42 A 44 44 0 0 0 -22,36"/>
+        <path d="M 8,-43 A 44 44 0 0 0 -8,43"/>
+        <path d="M 26,-35 A 44 44 0 0 0 10,42"/>
+      </g>
+      <circle cx="30" cy="-24" r="6" fill="#241a12"/>
+      <circle cx="28" cy="-26" r="2" fill="#fff"/>
+    </g>
+
+    <!-- Alvin: white hull, red sail. Origin at the middle of the hull, facing right. -->
+    <g id="alvin-proto">
+      <!-- tail fins and the ducted thruster -->
+      <path d="M -84,-14 L -126,-46 L -120,-6 Z" fill="#cfd6de"/>
+      <path d="M -84,14 L -126,44 L -120,6 Z" fill="#b9c2cc"/>
+      <circle cx="-104" cy="0" r="17" fill="#8c96a2"/>
+      <circle cx="-104" cy="0" r="10" fill="#4e5763"/>
+      <!-- hull -->
+      <ellipse cx="0" cy="0" rx="94" ry="40" fill="#eef2f6"/>
+      <path d="M -94,4 C -60,32 60,32 94,4 C 60,24 -60,24 -94,4 Z" fill="#c2cbd5"/>
+      <ellipse cx="-18" cy="-16" rx="46" ry="12" fill="#ffffff" opacity="0.75"/>
+      <!-- red sail -->
+      <path d="M -34,-34 C -30,-88 30,-88 38,-34 Z" fill="#d6392f"/>
+      <path d="M -24,-40 C -20,-78 16,-78 22,-40 Z" fill="#f05a4c"/>
+      <rect x="-3" y="-118" width="6" height="34" rx="3" fill="#8c96a2"/>
+      <circle cx="0" cy="-120" r="6" fill="#ffd166"/>
+      <!-- personnel sphere and viewport -->
+      <circle cx="80" cy="4" r="30" fill="#dfe5ec"/>
+      <circle cx="92" cy="2" r="15" fill="#2f5a78"/>
+      <circle cx="88" cy="-3" r="5" fill="#9fd8ee" opacity="0.85"/>
+      <!-- sample basket -->
+      <path d="M 44,30 L 116,30 L 108,52 L 52,52 Z" fill="none" stroke="#9aa3ad" stroke-width="4"/>
+      <g stroke="#9aa3ad" stroke-width="2.6">
+        <path d="M 62,30 L 60,52"/><path d="M 80,30 L 80,52"/><path d="M 98,30 L 100,52"/>
+      </g>
+      <!-- lamps -->
+      <circle cx="104" cy="-18" r="8" fill="#ffe9a8"/>
+      <circle cx="58" cy="-32" r="7" fill="#ffe9a8"/>
+      <text x="-44" y="8" font-family="Helvetica, Arial, sans-serif" font-size="20"
+        font-weight="bold" fill="#8c96a2">ALVIN</text>
+    </g>
+
+    <!-- the manipulator arm, pivot at the shoulder; the scene waves it -->
+    <g id="alvin-arm">
+      <path d="M 0,0 L 52,32" stroke="#b9c2cc" stroke-width="17" stroke-linecap="round"/>
+      <path d="M 52,32 L 104,16" stroke="#9aa3ad" stroke-width="15" stroke-linecap="round"/>
+      <circle cx="52" cy="32" r="11" fill="#6f7884"/>
+      <circle cx="0" cy="0" r="10" fill="#6f7884"/>
+      <path d="M 104,16 L 132,0 M 104,16 L 132,32" stroke="#8c96a2" stroke-width="11"
+        stroke-linecap="round"/>
+    </g>
+
+    <!-- Vent eelpout: a long pink fish that lounges among the worms. Origin at the
+         HEAD, facing right, body trailing off to the left; mirror it to swim left. -->
+    <g id="eelpout-proto">
+      <!-- the continuous dorsal/anal fin that runs the whole length -->
+      <path d="M -8,-4 C -58,-30 -112,-30 -158,-8 C -202,12 -242,16 -272,4"
+        stroke="#c1836f" stroke-width="54" fill="none" stroke-linecap="round" opacity="0.5"/>
+      <!-- tail, flicking on its own -->
+      <g>
+        <animateTransform attributeName="transform" type="rotate" additive="sum"
+          values="0 -256 4; 15 -256 4; 0 -256 4; -15 -256 4; 0 -256 4"
+          dur="0.9s" repeatCount="indefinite"/>
+        <path d="M -252,4 L -306,-24 L -296,4 L -306,32 Z" fill="#c1836f"/>
+      </g>
+      <!-- the body, tapered by overlapping two strokes -->
+      <path d="M -118,-20 C -170,2 -214,14 -266,4" stroke="#d9a58e" stroke-width="24"
+        fill="none" stroke-linecap="round"/>
+      <path d="M 2,0 C -48,-26 -98,-28 -144,-10" stroke="#d9a58e" stroke-width="38"
+        fill="none" stroke-linecap="round"/>
+      <path d="M -4,12 C -50,-8 -96,-10 -140,6" stroke="#f2d6c7" stroke-width="13"
+        fill="none" stroke-linecap="round" opacity="0.75"/>
+      <!-- pectoral fin -->
+      <path d="M -14,4 C -30,24 -50,32 -62,28 C -52,10 -32,0 -14,0 Z" fill="#c1836f"/>
+      <!-- head -->
+      <ellipse cx="6" cy="-2" rx="32" ry="26" fill="#e3b49f"/>
+      <path d="M 22,10 Q 36,14 32,22 Q 16,22 8,14 Z" fill="#a9645a"/>
+      <circle cx="16" cy="-12" r="8.5" fill="#241a1a"/>
+      <circle cx="18" cy="-15" r="3" fill="#fff"/>
+      <path d="M -12,-16 C -4,-22 6,-24 14,-22" stroke="#c1836f" stroke-width="3"
+        fill="none" stroke-linecap="round" opacity="0.7"/>
+    </g>
+
+    <!-- Yeti crab (Kiwa): blind, white, and covered in the bacterial fleece it farms
+         by waving its arms. Body has feet at the origin; the arms are their own proto
+         so the scene can dance them. -->
+    <g id="yeti-body">
+      <g stroke="#e6ddd4" stroke-width="7" fill="none" stroke-linecap="round">
+        <path d="M -22,-32 C -48,-26 -64,-12 -68,2"/>
+        <path d="M -12,-34 C -36,-22 -48,-8 -50,4"/>
+        <path d="M 12,-34 C 36,-22 48,-8 50,4"/>
+        <path d="M 22,-32 C 48,-26 62,-12 66,2"/>
+      </g>
+      <!-- leg fur -->
+      <g stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" opacity="0.75">
+        <path d="M -40,-18 L -50,-26 M -30,-8 L -40,-15 M 40,-18 L 50,-26 M 30,-8 L 40,-15"/>
+      </g>
+      <ellipse cx="0" cy="-50" rx="44" ry="30" fill="#f8f4ef"/>
+      <path d="M -44,-52 C -22,-70 22,-70 44,-52 C 22,-60 -22,-60 -44,-52 Z" fill="#fffdfa"/>
+      <ellipse cx="0" cy="-44" rx="28" ry="15" fill="#e4dbd0" opacity="0.55"/>
+      <!-- a blunt rostrum and two tiny blind eyes -->
+      <path d="M -10,-78 L 0,-92 L 10,-78 Z" fill="#f8f4ef"/>
+      <circle cx="-11" cy="-72" r="4.6" fill="#b9a99c"/>
+      <circle cx="11" cy="-72" r="4.6" fill="#b9a99c"/>
+      <path d="M -10,-38 Q 0,-30 10,-38" stroke="#b9a99c" stroke-width="2.6"
+        stroke-linecap="round" fill="none"/>
+    </g>
+    <g id="yeti-arm">
+      <!-- the fleece first, so the arm segments sit on top of it: short dense tufts,
+           not long spines (long ones made it look like a rib cage) -->
+      <g stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.92">
+        <path d="M -7,-6 C -13,-9 -16,-13 -17,-17"/>
+        <path d="M -4,-18 C -10,-21 -13,-25 -14,-29"/>
+        <path d="M -1,-30 C -7,-33 -10,-37 -11,-41"/>
+        <path d="M 3,-44 C -3,-47 -6,-51 -7,-55"/>
+        <path d="M 6,-58 C 0,-60 -3,-64 -4,-68"/>
+        <path d="M 8,-72 C 2,-74 -1,-78 -2,-82"/>
+        <path d="M 9,-86 C 3,-88 0,-92 -1,-96"/>
+        <path d="M 10,-100 C 4,-102 1,-106 0,-110"/>
+        <path d="M 13,-6 C 19,-9 22,-13 23,-17"/>
+        <path d="M 16,-18 C 22,-21 25,-25 26,-29"/>
+        <path d="M 19,-30 C 25,-33 28,-37 29,-41"/>
+        <path d="M 27,-48 C 33,-50 36,-54 37,-58"/>
+        <path d="M 26,-62 C 32,-64 35,-68 36,-72"/>
+        <path d="M 25,-76 C 31,-78 34,-82 35,-86"/>
+        <path d="M 24,-90 C 30,-92 33,-96 34,-100"/>
+      </g>
+      <path d="M 0,0 L 22,-46" stroke="#f8f4ef" stroke-width="21" stroke-linecap="round"/>
+      <path d="M 22,-46 L 16,-104" stroke="#fffdfa" stroke-width="19" stroke-linecap="round"/>
+      <ellipse cx="14" cy="-114" rx="16" ry="18" fill="#fffdfa"/>
+      <path d="M 4,-124 C -2,-138 -6,-150 -6,-156 C 4,-148 12,-136 16,-126 Z" fill="#fffdfa"/>
+      <path d="M 22,-124 C 30,-136 36,-146 38,-152 C 34,-140 30,-128 28,-120 Z" fill="#e9ded3"/>
+    </g>
+
+    <!-- Giant vent clam: one valve, hinged at the origin and fanning to the right.
+         A scene uses two of them (the lower one mirrored) plus the red flesh between. -->
+    <g id="clam-valve">
+      <path d="M 2,6 C 18,-34 58,-48 96,-38 C 118,-31 128,-14 126,6 Z" fill="#f4f1e8"/>
+      <g stroke="#dcd6c6" stroke-width="3" fill="none" stroke-linecap="round">
+        <path d="M 12,0 C 26,-30 58,-40 92,-32"/>
+        <path d="M 26,0 C 38,-24 62,-32 86,-26"/>
+        <path d="M 44,0 C 52,-17 68,-22 84,-18"/>
+      </g>
+      <path d="M 2,6 C 18,-34 58,-48 96,-38" stroke="#c8c2b0" stroke-width="3.4"
+        fill="none" stroke-linecap="round"/>
+    </g>
+    <g id="clam-flesh">
+      <!-- vent clams are bright red inside: their blood is full of haemoglobin -->
+      <path d="M 20,-14 C 46,-26 84,-24 108,-11 C 84,3 46,5 20,-2 Z" fill="#cf4238"/>
+      <path d="M 38,-13 C 62,-19 88,-17 102,-10" stroke="#ff8a7a" stroke-width="4.5"
+        fill="none" stroke-linecap="round" opacity="0.7"/>
+      <ellipse cx="96" cy="-7" rx="11" ry="7" fill="#ff8a7a" opacity="0.85"/>
+    </g>
+
+    <!-- ---------- scenery and effects ---------- -->
+
+    <g id="mussel-clump">
+      <g fill="#2f3b4a" stroke="#465667" stroke-width="2">
+        <ellipse cx="-16" cy="-8" rx="13" ry="8" transform="rotate(-22 -16 -8)"/>
+        <ellipse cx="2" cy="-12" rx="14" ry="9" transform="rotate(8 2 -12)"/>
+        <ellipse cx="20" cy="-7" rx="12" ry="8" transform="rotate(26 20 -7)"/>
+        <ellipse cx="-4" cy="-3" rx="13" ry="8" transform="rotate(-6 -4 -3)"/>
+      </g>
+    </g>
+    <path id="rock-proto" fill="#1c2430"
+      d="M -70,0 C -62,-30 -36,-48 -8,-46 C 20,-44 48,-28 62,0 Z"/>
+    <circle id="bubble-proto" r="9" fill="none" stroke="#bfe8ff" stroke-width="2.6" opacity="0.8"/>
+    <path id="heart-proto" fill="#ff6b81"
+      d="M 0,-4 C -4,-13 -17,-13 -17,-2 C -17,8 0,17 0,17 C 0,17 17,8 17,-2 C 17,-13 4,-13 0,-4 Z"/>
+    <path id="star-proto" fill="#ffd166"
+      d="M 0,-13 L 3.8,-4 L 13,-4 L 5.5,1.8 L 8,11 L 0,5.5 L -8,11 L -5.5,1.8 L -13,-4 L -3.8,-4 Z"/>
+    <g id="sparkle-proto" fill="#fff3bf">
+      <path d="M 0,-18 L 4,-4 L 18,0 L 4,4 L 0,18 L -4,4 L -18,0 L -4,-4 Z"/>
+      <circle r="3.4" fill="#fff"/>
+    </g>
+  </defs>
+</svg>
+
+<div id="app">
+
+  <!-- ======= main scene: Spellworm's vent field ======= -->
+  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <rect x="-20" y="-40" width="1040" height="460" fill="url(#water-grad)"/>
+    <ellipse cx="716" cy="250" rx="240" ry="200" fill="url(#warm-glow)"/>
+
+    <!-- marine snow drifting down through the lights -->
+    <g class="snow" fill="#cfe6f5">
+      <circle class="flake" style="--i:0"  cx="60"  cy="40"  r="2.4"/>
+      <circle class="flake" style="--i:1"  cx="150" cy="120" r="1.8"/>
+      <circle class="flake" style="--i:2"  cx="240" cy="70"  r="2.8"/>
+      <circle class="flake" style="--i:3"  cx="330" cy="160" r="2"/>
+      <circle class="flake" style="--i:4"  cx="410" cy="60"  r="2.4"/>
+      <circle class="flake" style="--i:5"  cx="500" cy="130" r="1.7"/>
+      <circle class="flake" style="--i:6"  cx="580" cy="90"  r="2.6"/>
+      <circle class="flake" style="--i:7"  cx="660" cy="170" r="2"/>
+      <circle class="flake" style="--i:8"  cx="740" cy="50"  r="2.2"/>
+      <circle class="flake" style="--i:9"  cx="820" cy="140" r="2.8"/>
+      <circle class="flake" style="--i:10" cx="900" cy="80"  r="1.8"/>
+      <circle class="flake" style="--i:11" cx="960" cy="180" r="2.4"/>
+      <circle class="flake" style="--i:12" cx="110" cy="210" r="2"/>
+      <circle class="flake" style="--i:13" cx="290" cy="240" r="2.5"/>
+      <circle class="flake" style="--i:14" cx="470" cy="215" r="1.9"/>
+      <circle class="flake" style="--i:15" cx="860" cy="245" r="2.2"/>
+    </g>
+
+    <!-- far ridge -->
+    <path d="M -20,400 L -20,318 C 90,286 180,320 280,300 C 380,280 470,312 560,296
+             C 680,274 800,306 900,288 C 960,278 1000,296 1020,290 L 1020,400 Z"
+      fill="#0a1725"/>
+
+    <!-- seafloor -->
+    <path d="M -20,400 L -20,360 C 140,344 380,374 620,358 C 800,346 930,368 1020,356 L 1020,400 Z"
+      fill="#15202d"/>
+    <path d="M -20,400 L -20,382 C 180,370 460,392 740,378 C 870,372 960,384 1020,378 L 1020,400 Z"
+      fill="#0e1720"/>
+
+    <use href="#rock-proto" transform="translate(120, 370) scale(0.9)"/>
+    <use href="#rock-proto" transform="translate(880, 364) scale(1.1)"/>
+    <use href="#rock-proto" transform="translate(500, 376) scale(0.55)"/>
+
+    <!-- the black smoker, and the worm colonies crowding round it -->
+    <g id="vent-stack">
+      <use class="chimney" href="#vent-proto"/>
+      <g class="smoke">
+        <use href="#smoke-puff" class="puff" style="--i:0; --dx:-26px"/>
+        <use href="#smoke-puff" class="puff" style="--i:1; --dx:14px"/>
+        <use href="#smoke-puff" class="puff" style="--i:2; --dx:-8px"/>
+        <use href="#smoke-puff" class="puff" style="--i:3; --dx:30px"/>
+        <use href="#smoke-puff" class="puff" style="--i:4; --dx:-34px"/>
+        <use href="#smoke-puff" class="puff" style="--i:5; --dx:4px"/>
+        <use href="#sparkle-proto" class="grit" style="--i:0; --dx:-44px"/>
+        <use href="#sparkle-proto" class="grit" style="--i:1; --dx:26px"/>
+        <use href="#sparkle-proto" class="grit" style="--i:2; --dx:-14px"/>
+        <use href="#sparkle-proto" class="grit" style="--i:3; --dx:46px"/>
+      </g>
+    </g>
+
+    <!-- the colony: ten neighbours, plus Spellworm out in front -->
+    <g class="colony">
+      <g class="worm w1"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w2"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w3"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w4"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w5"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w6"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w7"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w8"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w9"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w10"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    </g>
+
+    <use href="#mussel-clump" transform="translate(250, 372) scale(1.1)"/>
+    <use href="#mussel-clump" transform="translate(600, 380) scale(0.9)"/>
+    <use href="#mussel-clump" transform="translate(830, 374) scale(1.2)"/>
+
+    <!-- Spellworm herself, front and centre -->
+    <g class="worm hero">
+      <use class="plume worm-face" id="spellworm" href="#worm-plume"/>
+      <use class="tube" href="#worm-tube"/>
+      <!-- invisible anchor marking her mouth: minerals fly here (it tracks the plume) -->
+      <g class="plume-anchor"><circle id="worm-mouth" cx="0" cy="-14" r="2" fill="none"
+        pointer-events="none"/></g>
+    </g>
+  </svg>
+
+  <!-- ======= word tiles ======= -->
+  <div id="word-area">
+    <div id="tiles"></div>
+    <div id="hint"></div>
+  </div>
+
+  <div id="tray" aria-hidden="true"></div>
+</div>
+
+<!-- ======= start overlay ======= -->
+<div id="start-overlay" class="overlay">
+  <svg id="start-worm" viewBox="-250 -330 500 366" aria-hidden="true">
+    <ellipse cx="60" cy="-120" rx="230" ry="180" fill="url(#warm-glow)"/>
+    <use href="#vent-proto" transform="translate(150, 20) scale(0.9)"/>
+    <use href="#worm-proto" transform="translate(-130, 24) scale(0.62)"/>
+    <use href="#worm-proto" transform="translate(-52, 26) scale(0.48)"/>
+    <g class="worm hero-static" transform="translate(30, 30)">
+      <use class="plume worm-face happy" href="#worm-plume"/>
+      <use class="tube" href="#worm-tube"/>
+    </g>
+    <path d="M -250,36 L 250,36 L 250,60 L -250,60 Z" fill="#15202d"/>
+  </svg>
+  <h1>SPELLWORMS</h1>
+  <p class="subtitle">A spelling adventure with Spellworm the giant tube worm,<br>
+    who eats sparkling minerals at the bottom of the sea</p>
+  <div class="press">Press any key to begin!</div>
+</div>
+
+<!-- ======= celebration overlay ======= -->
+<div id="celebration" class="overlay" hidden>
+  <div id="celebration-word"></div>
+  <div id="celebration-caption"></div>
+
+  <!-- happy: a ghost crab comes to say hello -->
+  <svg id="scene-crab" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="420" rx="360" ry="170" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(96, 466) scale(0.8)"/>
+    <use href="#mussel-clump" transform="translate(690, 470) scale(1.1)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <g class="crab-wrap"><use href="#crab-proto"/></g>
+    <use href="#heart-proto" class="cb-heart h1"/>
+    <use href="#heart-proto" class="cb-heart h2"/>
+    <use href="#heart-proto" class="cb-heart h3"/>
+    <use href="#heart-proto" class="cb-heart h4"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+  </svg>
+
+  <!-- happy: a dumbo octopus flaps past -->
+  <svg id="scene-octopus" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="430" rx="360" ry="160" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(700, 464) scale(0.9)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <g class="octo-wrap"><use href="#octo-proto"/></g>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+    <use href="#bubble-proto" class="cb-bubble b4"/>
+    <use href="#bubble-proto" class="cb-bubble b5"/>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+  </svg>
+
+  <!-- happy: the Pompeii worms throw a party -->
+  <svg id="scene-pompeii" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="420" rx="380" ry="180" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <g class="pw p1"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="pw p2"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="pw p3"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="pw p4"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="pw p5"><use href="#pompeii-tube"/><use class="pw-body" href="#pompeii-worm"/></g>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+    <use href="#star-proto" class="cb-star s4"/>
+    <use href="#star-proto" class="cb-star s5"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+    <use href="#bubble-proto" class="cb-bubble b4"/>
+  </svg>
+
+  <!-- happy: Alvin the submarine drops in -->
+  <svg id="scene-alvin" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="430" rx="340" ry="150" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#mussel-clump" transform="translate(120, 470) scale(1.0)"/>
+    <g class="sub-wrap">
+      <path class="beam beam-a" d="M 104,-18 L 356,4 L 338,138 Z"/>
+      <path class="beam beam-b" d="M 58,-32 L 306,44 L 288,170 Z"/>
+      <use href="#alvin-proto"/>
+      <use class="arm" href="#alvin-arm"/>
+    </g>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+    <use href="#bubble-proto" class="cb-bubble b4"/>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+  </svg>
+
+  <!-- happy: a giant isopod rolls in like a marble -->
+  <svg id="scene-isopod" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="430" rx="360" ry="160" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(120, 464) scale(0.7)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#isopod-ball" class="pod-ball"/>
+    <g class="pod-wrap"><use href="#isopod-proto"/></g>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+    <use href="#star-proto" class="cb-star s4"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+  </svg>
+
+  <!-- happy: a vent eelpout comes over for a nose-to-nose -->
+  <svg id="scene-eelpout" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="430" rx="360" ry="160" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(700, 464) scale(0.8)"/>
+    <use href="#mussel-clump" transform="translate(120, 468) scale(1.1)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <g class="eel-wrap"><use href="#eelpout-proto"/></g>
+    <use href="#heart-proto" class="cb-heart h1"/>
+    <use href="#heart-proto" class="cb-heart h2"/>
+    <use href="#heart-proto" class="cb-heart h3"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+  </svg>
+
+  <!-- happy: a yeti crab dances to farm its fur -->
+  <svg id="scene-yeticrab" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="420" cy="420" rx="370" ry="180" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <use href="#rock-proto" transform="translate(740, 466) scale(0.7)"/>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <g class="yeti-wrap">
+      <use class="arm arm-l" href="#yeti-arm"/>
+      <use class="arm arm-r" href="#yeti-arm"/>
+      <use href="#yeti-body"/>
+    </g>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+    <use href="#star-proto" class="cb-star s4"/>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+  </svg>
+
+  <!-- happy: the giant clams sing -->
+  <svg id="scene-clams" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="400" cy="424" rx="380" ry="180" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,462 C 220,450 520,476 800,456 L 800,500 Z"/>
+    <g class="clam c1"><use class="flesh" href="#clam-flesh"/><use class="valve bottom" href="#clam-valve"/><use class="valve top" href="#clam-valve"/></g>
+    <g class="clam c2"><use class="flesh" href="#clam-flesh"/><use class="valve bottom" href="#clam-valve"/><use class="valve top" href="#clam-valve"/></g>
+    <g class="clam c3"><use class="flesh" href="#clam-flesh"/><use class="valve bottom" href="#clam-valve"/><use class="valve top" href="#clam-valve"/></g>
+    <g class="clam c4"><use class="flesh" href="#clam-flesh"/><use class="valve bottom" href="#clam-valve"/><use class="valve top" href="#clam-valve"/></g>
+    <g class="worm host"><use class="plume worm-face happy" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#bubble-proto" class="cb-bubble b1"/>
+    <use href="#bubble-proto" class="cb-bubble b2"/>
+    <use href="#bubble-proto" class="cb-bubble b3"/>
+    <use href="#bubble-proto" class="cb-bubble b4"/>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+  </svg>
+
+  <!-- FINALE: the vent coughs up a rare manganese nodule -->
+  <svg id="scene-nodule" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#water-grad)"/>
+    <ellipse cx="430" cy="400" rx="380" ry="200" fill="url(#warm-glow)"/>
+    <path class="floor" d="M 0,500 L 0,466 C 220,454 520,480 800,460 L 800,500 Z"/>
+    <use class="fin-vent" href="#vent-proto" transform="translate(470, 470) scale(1.0)"/>
+    <g class="blast">
+      <use href="#smoke-puff" class="bpuff q1"/>
+      <use href="#smoke-puff" class="bpuff q2"/>
+      <use href="#smoke-puff" class="bpuff q3"/>
+      <use href="#smoke-puff" class="bpuff q4"/>
+    </g>
+    <use href="#nodule-proto" class="prize"/>
+    <!-- the tasty part: sulfide crystals shaken loose off the nodule -->
+    <use href="#mineral-pyrite" class="cb-gem m1"/>
+    <use href="#mineral-copper" class="cb-gem m2"/>
+    <use href="#mineral-barite" class="cb-gem m3"/>
+    <use href="#mineral-pyrite" class="cb-gem m4"/>
+    <g class="glow">
+      <use href="#sparkle-proto" class="spark g1"/>
+      <use href="#sparkle-proto" class="spark g2"/>
+      <use href="#sparkle-proto" class="spark g3"/>
+      <use href="#sparkle-proto" class="spark g4"/>
+      <use href="#sparkle-proto" class="spark g5"/>
+      <use href="#sparkle-proto" class="spark g6"/>
+    </g>
+    <g class="worm host reacher"><use class="plume worm-face" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+    <use href="#star-proto" class="cb-star f1"/>
+    <use href="#star-proto" class="cb-star f2"/>
+    <use href="#star-proto" class="cb-star f3"/>
+    <use href="#star-proto" class="cb-star f4"/>
+    <use href="#star-proto" class="cb-star f5"/>
+    <use href="#star-proto" class="cb-star f6"/>
+  </svg>
+</div>
+
+<script>
+/*
+ * Spellworms's word list and rewards — the file to edit to tune the game.
+ * UMD-ish: window.SpellWords in the browser, require() in tests.
+ */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  } else {
+    root.SpellWords = api;
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  return {
+    // Deep-sea words, 4–9 letters. The short ones name what is on screen (VENT, TUBE,
+    // PLUME); the long ones are the fun mouthfuls a small human likes shouting.
+    WORDS: [
+      'DEEP', 'WORM', 'VENT', 'TUBE', 'CRAB', 'CLAM',
+      'OCEAN', 'ABYSS', 'ALVIN', 'PLUME',
+      'PYRITE', 'ISOPOD', 'SAMPLE', 'NODULE',
+      'CHIMNEY', 'SULFIDE', 'BENTHIC', 'OCTOPUS', 'POMPEII', 'MINERAL', 'EELPOUT',
+      'ATLANTIS', 'MANGANESE', 'SUBMARINE',
+    ],
+
+    // A random visitor to the vent after each word — then the manganese nodule every 4th.
+    CELEBRATIONS: {
+      pool: ['crab', 'octopus', 'pompeii', 'alvin', 'isopod', 'eelpout', 'yeticrab', 'clams'],
+      pick: 'random',
+      finale: { name: 'nodule', every: 4 },
+    },
+  };
+});
+</script>
+<script>
+/*
+ * Spelling-game rules — pure, no DOM, no theme.
+ *
+ * Every themed game (Spellaluna, Spellasaurus, ...) shares this: a shuffled word queue
+ * with no immediate repeats, letter-by-letter matching, and a celebration picked after
+ * each finished word.
+ *
+ * UMD-ish: usable as a classic <script> (window.SpellRules) and via require() in tests.
+ */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  } else {
+    root.SpellRules = api;
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+
+  function shuffle(arr, rng) {
+    const out = arr.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
+  function pickFrom(list, rng) {
+    return list[Math.min(Math.floor(rng() * list.length), list.length - 1)];
+  }
+
+  /*
+   * createGame({ words, rng, celebrations })
+   *
+   * celebrations describes how the reward after each word is chosen:
+   *   pool:   celebration names to draw from
+   *   pick:   'cycle'  — walk the pool in order (1st word, 2nd word, ...)
+   *           'random' — pick at random, never the same one twice in a row
+   *   finale: { name, every } — optional; replaces the pool pick on every Nth word
+   */
+  function createGame(opts) {
+    opts = opts || {};
+    const allWords = (opts.words || []).slice();
+    if (!allWords.length) throw new Error('createGame needs a non-empty words list');
+    const rng = opts.rng || Math.random;
+    const cel = opts.celebrations || {};
+    const finale = cel.finale && cel.finale.name
+      ? { name: cel.finale.name, every: cel.finale.every || 3 }
+      : null;
+    return {
+      allWords,
+      rng,
+      celebrations: {
+        pool: (cel.pool || []).slice(),
+        pick: cel.pick === 'random' ? 'random' : 'cycle',
+        finale,
+      },
+      queue: shuffle(allWords, rng),
+      wordIndex: 0,
+      letterIndex: 0,
+      wordsCompleted: 0,
+      poolPicks: 0,          // pool position; finales don't advance it
+      lastCelebration: null,
+    };
+  }
+
+  function getCurrentWord(game) {
+    return game.queue[game.wordIndex];
+  }
+
+  function getLetterIndex(game) {
+    return game.letterIndex;
+  }
+
+  /* Swap the word being spelled right now (the add-a-word feature). */
+  function replaceCurrentWord(game, word) {
+    game.queue[game.wordIndex] = word;
+    game.letterIndex = 0;
+    if (!game.allWords.includes(word)) game.allWords.push(word);
+  }
+
+  function advanceWord(game) {
+    const lastWord = getCurrentWord(game);
+    game.wordIndex++;
+    game.letterIndex = 0;
+    if (game.wordIndex >= game.queue.length) {
+      const next = shuffle(game.allWords, game.rng);
+      if (next.length > 1 && next[0] === lastWord) {
+        [next[0], next[next.length - 1]] = [next[next.length - 1], next[0]];
+      }
+      game.queue = next;
+      game.wordIndex = 0;
+    }
+  }
+
+  /* Which reward plays now that `game.wordsCompleted` words are done. */
+  function chooseCelebration(game) {
+    const c = game.celebrations;
+    const n = game.wordsCompleted;
+    if (c.finale && n % c.finale.every === 0) {
+      return { celebration: c.finale.name, finale: true };
+    }
+    if (!c.pool.length) return { celebration: null, finale: false };
+
+    let name;
+    if (c.pick === 'cycle') {
+      name = c.pool[game.poolPicks % c.pool.length];
+    } else {
+      // never the same happy animation twice in a row — variety matters to a small human
+      const choices = c.pool.length > 1
+        ? c.pool.filter((x) => x !== game.lastCelebration)
+        : c.pool;
+      name = pickFrom(choices, game.rng);
+    }
+    game.poolPicks++;
+    game.lastCelebration = name;
+    return { celebration: name, finale: false };
+  }
+
+  /*
+   * Feed one keypress into the game. Mutates `game` and returns an event:
+   *   {type:'ignored'}
+   *   {type:'incorrect', letter, expected}
+   *   {type:'correct', letter, index}
+   *   {type:'word-complete', word, letter, index, celebration, finale, wordsCompleted}
+   * After 'word-complete' the game has already advanced to the next word.
+   */
+  function inputLetter(game, raw) {
+    const letter = String(raw || '').toUpperCase();
+    if (!/^[A-Z]$/.test(letter)) return { type: 'ignored' };
+
+    const word = getCurrentWord(game);
+    const expected = word[game.letterIndex];
+    if (letter !== expected) {
+      return { type: 'incorrect', letter, expected };
+    }
+
+    const index = game.letterIndex;
+    game.letterIndex++;
+    if (game.letterIndex >= word.length) {
+      game.wordsCompleted++;
+      const chosen = chooseCelebration(game);
+      advanceWord(game);
+      return {
+        type: 'word-complete',
+        word,
+        letter,
+        index,
+        celebration: chosen.celebration,
+        finale: chosen.finale,
+        wordsCompleted: game.wordsCompleted,
+      };
+    }
+    return { type: 'correct', letter, index };
+  }
+
+  return {
+    createGame,
+    getCurrentWord,
+    getLetterIndex,
+    replaceCurrentWord,
+    inputLetter,
+    shuffle,
+  };
+});
+</script>
+<script>
+/*
+ * Shared effects toolkit: Web Audio primitives, speech, and the sprite animations both
+ * games use (a treat flying from a tile to the hero's mouth, a critter scurrying past).
+ * Art is always supplied by the theme as an SVG <defs> id — this file never names one.
+ *
+ * Exposes window.SpellFx.
+ */
+(function () {
+  'use strict';
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  let muted = false;
+  let actx = null;
+  let trayEl = null;
+
+  /* ---------- sound ---------- */
+
+  // Must be called from inside a user gesture the first time, or the context stays suspended.
+  function ctx() {
+    if (!actx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      actx = new AC();
+    }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+
+  function tone(freq, startIn, dur, type, peak) {
+    const c = ctx();
+    if (!c || muted) return;
+    const t0 = c.currentTime + (startIn || 0);
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(peak || 0.18, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain).connect(c.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
+    return osc;
+  }
+
+  /* A pitch slide — the raw material for bloops, rumbles and whooshes. */
+  function sweep(from, to, dur, type, peak, startIn) {
+    const c = ctx();
+    if (!c || muted) return;
+    const t0 = c.currentTime + (startIn || 0);
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(from, t0);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(to, 1), t0 + dur * 0.85);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(peak || 0.2, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain).connect(c.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.07);
+    return osc;
+  }
+
+  /* Filtered noise burst — splashes, thumps, tail cracks. */
+  function noise(dur, startIn, peak, filterHz, filterType) {
+    const c = ctx();
+    if (!c || muted) return;
+    const t0 = c.currentTime + (startIn || 0);
+    const frames = Math.max(1, Math.floor(c.sampleRate * dur));
+    const buf = c.createBuffer(1, frames, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const filter = c.createBiquadFilter();
+    filter.type = filterType || 'bandpass';
+    filter.frequency.setValueAtTime(filterHz || 1200, t0);
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(peak || 0.18, t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filter).connect(gain).connect(c.destination);
+    src.start(t0);
+    src.stop(t0 + dur);
+  }
+
+  /* ---------- speech ---------- */
+
+  function say(text, opts) {
+    opts = opts || {};
+    if (muted || !window.speechSynthesis) return;
+    if (opts.cancel !== false) window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = opts.rate || 0.9;
+    u.pitch = opts.pitch || 1.15;
+    u.lang = 'en-US';
+    window.speechSynthesis.speak(u);
+  }
+
+  /* Letters and all-caps words are read as "capital B" / acronyms — always lowercase. */
+  function sayWord(word, opts) {
+    say(String(word).toLowerCase(), opts);
+  }
+
+  function setMuted(next) {
+    muted = next;
+    if (muted && window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+
+  function isMuted() {
+    return muted;
+  }
+
+  /* ---------- sprites ---------- */
+
+  function sprite(protoId, size, viewBox) {
+    const wrap = document.createElement('div');
+    wrap.className = 'sprite';
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', viewBox || '-32 -32 64 64');
+    svg.setAttribute('width', size);
+    svg.setAttribute('height', size);
+    const use = document.createElementNS(SVG_NS, 'use');
+    use.setAttribute('href', '#' + protoId);
+    svg.appendChild(use);
+    wrap.appendChild(svg);
+    document.body.appendChild(wrap);
+    return wrap;
+  }
+
+  /*
+   * Arc a treat from a letter tile up to the hero's mouth, then hand off to onArrive.
+   * opts: { proto, size, fromEl, toEl, viewBox, duration, lift, spin, onArrive }
+   */
+  function flyTo(opts) {
+    const size = opts.size || 84;
+    const from = opts.fromEl.getBoundingClientRect();
+    const to = opts.toEl.getBoundingClientRect();
+    const s = sprite(opts.proto, size, opts.viewBox);
+    const x0 = from.left + from.width / 2 - size / 2;
+    const y0 = from.top - size / 2;
+    s.style.left = x0 + 'px';
+    s.style.top = y0 + 'px';
+    const dx = to.left + to.width / 2 - size / 2 - x0;
+    const dy = to.top + to.height / 2 - size / 2 - y0;
+    const lift = opts.lift == null ? 90 : opts.lift;
+    const spin = opts.spin == null ? 330 : opts.spin;
+
+    const anim = s.animate(
+      [
+        { transform: 'translate(0px, 0px) scale(0.4) rotate(0deg)', opacity: 1 },
+        {
+          transform: `translate(${dx * 0.45}px, ${dy * 0.5 - lift}px) scale(1.1) rotate(${spin * 0.48}deg)`,
+          opacity: 1,
+          offset: 0.55,
+        },
+        { transform: `translate(${dx}px, ${dy}px) scale(0.45) rotate(${spin}deg)`, opacity: 0.9 },
+      ],
+      { duration: opts.duration || 800, easing: 'ease-in-out' }
+    );
+    anim.onfinish = () => {
+      s.remove();
+      if (opts.onArrive) opts.onArrive();
+    };
+    return s;
+  }
+
+  /* A critter wanders in under the tiles and scurries off one side. */
+  function crawlPast(opts) {
+    const size = opts.size || 120;
+    const area = opts.areaEl.getBoundingClientRect();
+    const x0 = area.left + area.width * (0.15 + Math.random() * 0.7);
+    const y0 = area.bottom + (opts.drop == null ? 18 : opts.drop);
+    const s = sprite(opts.proto, size, opts.viewBox);
+    s.style.left = x0 + 'px';
+    s.style.top = y0 + 'px';
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    const dist = (window.innerWidth / 2 + size) * dir;
+    const flip = dir < 0 ? ' scale(-1, 1)' : '';
+    const wobble = opts.wobble == null ? 8 : opts.wobble;
+
+    const anim = s.animate(
+      [
+        { transform: `translate(0,0) scale(0.2)${flip}`, opacity: 0 },
+        { transform: `translate(${dist * 0.05}px, -6px)${flip}`, opacity: 1, offset: 0.15 },
+        { transform: `translate(${dist * 0.3}px, 4px) rotate(${wobble * dir}deg)${flip}`, offset: 0.45 },
+        { transform: `translate(${dist * 0.6}px, -4px) rotate(${-wobble * dir}deg)${flip}`, offset: 0.7 },
+        { transform: `translate(${dist}px, 2px)${flip}`, opacity: 1 },
+      ],
+      { duration: opts.duration || 1700, easing: 'linear' }
+    );
+    anim.onfinish = () => s.remove();
+    return s;
+  }
+
+  /* ---------- the collection tray (fruit eaten / leaves munched) ---------- */
+
+  function useTray(el) {
+    trayEl = el;
+  }
+
+  function addToTray(protoId, viewBox, max) {
+    if (!trayEl) return;
+    if (trayEl.children.length >= (max || 18)) trayEl.innerHTML = '';
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', viewBox || '-26 -30 52 56');
+    const use = document.createElementNS(SVG_NS, 'use');
+    use.setAttribute('href', '#' + protoId);
+    svg.appendChild(use);
+    trayEl.appendChild(svg);
+  }
+
+  /* ---------- mood classes (a temporary face on a <use> element) ---------- */
+
+  const moodTimers = new Map();
+
+  function mood(el, cls, ms, siblings) {
+    if (!el) return;
+    for (const other of siblings || []) el.classList.remove(other);
+    if (moodTimers.has(el)) clearTimeout(moodTimers.get(el));
+    if (!cls) return;
+    el.classList.add(cls);
+    moodTimers.set(el, setTimeout(() => el.classList.remove(cls), ms));
+  }
+
+  function rand(list) {
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  window.SpellFx = {
+    ctx, tone, sweep, noise,
+    say, sayWord, setMuted, isMuted,
+    sprite, flyTo, crawlPast,
+    useTray, addToTray,
+    mood, rand,
+    SVG_NS,
+  };
+})();
+</script>
+<script>
+/*
+ * The game shell, shared by every theme.
+ *
+ * Owns: the phase machine, keyboard input, letter tiles, the celebration sequencer,
+ * the add-a-word modal and the mute button. Knows nothing about bats, dinosaurs,
+ * fruit or leaves — a theme supplies words, art, sounds and celebration scenes, and
+ * calls SpellEngine.boot(theme) once its <script> has loaded.
+ *
+ * The theme's page must provide: #tiles, #hint, #start-overlay, #celebration,
+ * #celebration-word, #celebration-caption, one #scene-<name> per celebration, and
+ * optionally #tray. Everything else on the page is the theme's own art.
+ */
+(function () {
+  'use strict';
+
+  const R = window.SpellRules;
+  const fx = window.SpellFx;
+
+  let theme = null;
+  let game = null;
+  let phase = 'start'; // 'start' | 'playing' | 'celebrating' | 'adding-word'
+  let sceneCleanup = null;
+  let celebrationTimers = [];
+  const el = {};
+
+  /* ---------- chrome the engine owns outright ---------- */
+
+  function buildChrome() {
+    const mute = document.createElement('button');
+    mute.id = 'mute';
+    mute.setAttribute('aria-label', 'Toggle sound');
+    mute.textContent = '🔊';
+    mute.addEventListener('click', () => {
+      fx.setMuted(!fx.isMuted());
+      mute.textContent = fx.isMuted() ? '🔇' : '🔊';
+    });
+    document.body.appendChild(mute);
+
+    const modal = document.createElement('div');
+    modal.id = 'add-word-modal';
+    modal.className = 'overlay';
+    modal.hidden = true;
+    modal.innerHTML = `
+      <div id="add-word-card">
+        <label for="add-word-input"></label>
+        <input id="add-word-input" type="text" maxlength="20"
+               autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+        <div id="add-word-error" hidden></div>
+        <div id="add-word-buttons">
+          <button id="add-word-confirm">Add word</button>
+          <button id="add-word-cancel">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    el.addWordModal = modal;
+    el.addWordLabel = modal.querySelector('label');
+    el.addWordInput = modal.querySelector('#add-word-input');
+    el.addWordError = modal.querySelector('#add-word-error');
+    el.addWordLabel.textContent =
+      theme.addWordLabel || `Add a word for ${theme.name || 'the game'} to spell:`;
+
+    modal.querySelector('#add-word-confirm').addEventListener('click', confirmAddWord);
+    modal.querySelector('#add-word-cancel').addEventListener('click', closeAddWordModal);
+    el.addWordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter')  { e.preventDefault(); confirmAddWord(); }
+      if (e.key === 'Escape') { e.preventDefault(); closeAddWordModal(); }
+    });
+  }
+
+  /* ---------- words and tiles ---------- */
+
+  function renderWord(word) {
+    el.tiles.innerHTML = '';
+    // tiles shrink to fit long words (TYRANNOSAURUS is 13 of them)
+    el.tiles.style.setProperty('--n', word.length);
+    for (const letter of word) {
+      const tile = document.createElement('span');
+      tile.className = 'tile';
+      tile.textContent = letter;
+      el.tiles.appendChild(tile);
+    }
+  }
+
+  function startWord() {
+    const word = R.getCurrentWord(game);
+    renderWord(word);
+    el.hint.textContent = theme.hint || '';
+    fx.sayWord(word, { rate: 0.75 });
+    if (theme.onWordStart) theme.onWordStart(word);
+  }
+
+  /* ---------- per-letter feedback ---------- */
+
+  function handleCorrect(ev) {
+    const tileEl = el.tiles.children[ev.index];
+    tileEl.classList.add('done');
+    fx.sayWord(ev.letter);
+    if (theme.onCorrect) theme.onCorrect({ tileEl, index: ev.index, letter: ev.letter });
+  }
+
+  function handleIncorrect(ev) {
+    if (theme.onIncorrect) theme.onIncorrect({ letter: ev.letter, expected: ev.expected });
+  }
+
+  function handleWordComplete(ev) {
+    handleCorrect(ev);
+    phase = 'celebrating';
+    // a beat between the last letter and the fanfare — the pause is part of the reward
+    celebrationTimers.push(setTimeout(() => {
+      if (theme.onWordComplete) theme.onWordComplete(ev);
+      fx.sayWord(ev.word + '!', { rate: 0.75 });
+      celebrate(ev);
+    }, theme.completeDelay || 700));
+  }
+
+  /* ---------- celebrations ---------- */
+
+  function sceneFor(name) {
+    const spec = theme.scenes[name];
+    if (!spec) return null;
+    return document.querySelector(spec.selector || '#scene-' + name);
+  }
+
+  function allScenes() {
+    return Object.keys(theme.scenes).map(sceneFor).filter(Boolean);
+  }
+
+  function celebrate(ev) {
+    const spec = theme.scenes[ev.celebration];
+    const scene = sceneFor(ev.celebration);
+    if (!spec || !scene) { endCelebration(); return; }
+
+    el.celebrationWord.textContent = ev.word;
+    el.celebrationCaption.textContent = spec.caption || '';
+    el.celebration.hidden = false;
+    el.celebration.classList.toggle('finale', !!ev.finale);
+
+    // SVG elements have no .hidden property — the attribute is the only thing that works
+    for (const s of allScenes()) {
+      s.setAttribute('hidden', '');
+      s.classList.remove('playing');
+    }
+    scene.removeAttribute('hidden');
+    // next frame, so re-adding .playing restarts the CSS animations from the top
+    requestAnimationFrame(() => requestAnimationFrame(() => scene.classList.add('playing')));
+
+    if (spec.start) sceneCleanup = spec.start(scene, ev) || null;
+
+    if (spec.caption) {
+      celebrationTimers.push(setTimeout(() => fx.say(spec.caption, { cancel: false }), 1200));
+    }
+    celebrationTimers.push(setTimeout(endCelebration, spec.duration || 6500));
+  }
+
+  function endCelebration() {
+    el.celebration.hidden = true;
+    el.celebration.classList.remove('finale');
+    for (const s of allScenes()) s.classList.remove('playing');
+    if (sceneCleanup) sceneCleanup();
+    sceneCleanup = null;
+    clearTimers();
+    phase = 'playing';
+    startWord();
+  }
+
+  function clearTimers() {
+    celebrationTimers.forEach(clearTimeout);
+    celebrationTimers = [];
+  }
+
+  /* ---------- add-a-word modal ---------- */
+
+  function openAddWordModal() {
+    phase = 'adding-word';
+    el.addWordInput.value = '';
+    el.addWordError.hidden = true;
+    el.addWordModal.hidden = false;
+    el.addWordInput.focus();
+  }
+
+  function closeAddWordModal() {
+    el.addWordModal.hidden = true;
+    phase = 'playing';
+  }
+
+  function confirmAddWord() {
+    const word = el.addWordInput.value.trim().toUpperCase();
+    if (!word || !/^[A-Z]+$/.test(word)) {
+      el.addWordError.textContent = 'Only letters please!';
+      el.addWordError.hidden = false;
+      return;
+    }
+    R.replaceCurrentWord(game, word);
+    closeAddWordModal();
+    startWord();
+  }
+
+  /* ---------- input ---------- */
+
+  function begin() {
+    fx.ctx(); // unlock audio inside the user gesture
+    el.startOverlay.hidden = true;
+    game = R.createGame({ words: theme.words, celebrations: theme.celebrations });
+    phase = 'playing';
+    startWord();
+  }
+
+  function onKeyDown(e) {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+    if (phase === 'start') { begin(); return; }
+    if (phase !== 'playing') return;
+    // without preventDefault the same keystroke lands in the input we just focused
+    if (e.key === '+') { e.preventDefault(); openAddWordModal(); return; }
+    const ev = R.inputLetter(game, e.key);
+    if (ev.type === 'correct') handleCorrect(ev);
+    else if (ev.type === 'incorrect') handleIncorrect(ev);
+    else if (ev.type === 'word-complete') handleWordComplete(ev);
+  }
+
+  /* ---------- a small helper themes use for timed steps inside a scene ---------- */
+
+  function steps(pairs) {
+    const timers = pairs.map(([ms, fn]) => setTimeout(fn, ms));
+    return () => timers.forEach(clearTimeout);
+  }
+
+  function boot(themeSpec) {
+    theme = themeSpec;
+    el.tiles = document.getElementById('tiles');
+    el.hint = document.getElementById('hint');
+    el.startOverlay = document.getElementById('start-overlay');
+    el.celebration = document.getElementById('celebration');
+    el.celebrationWord = document.getElementById('celebration-word');
+    el.celebrationCaption = document.getElementById('celebration-caption');
+    const tray = document.getElementById('tray');
+    if (tray) fx.useTray(tray);
+
+    buildChrome();
+    document.addEventListener('keydown', onKeyDown);
+    el.startOverlay.addEventListener('click', () => { if (phase === 'start') begin(); });
+    if (theme.onReady) theme.onReady();
+  }
+
+  window.SpellEngine = { boot, steps, fx, get phase() { return phase; } };
+})();
+</script>
+<script>
+/* Spellworms — theme layer: art hookups, sound design, celebration choreography.
+   Shared rules and shell live in ../../engine/. */
+(function () {
+  'use strict';
+
+  const E = window.SpellEngine;
+  const fx = window.SpellFx;
+
+  const plume = document.getElementById('spellworm');       // the plume <use> carries her face
+  const anchor = document.querySelector('#scene .hero .plume-anchor');
+  const wormMouth = document.getElementById('worm-mouth');
+  const ventStack = document.getElementById('vent-stack');
+  const MOODS = ['munching', 'yucking'];
+
+  // the three sulfides a vent actually precipitates, in the colours they come out
+  const MINERALS = ['mineral-pyrite', 'mineral-copper', 'mineral-barite'];
+  const MINERAL_BOX = '-28 -28 56 56';
+
+  /* ---------- sound design: glassy, watery, a long way down ---------- */
+
+  // A bell that climbs through the word, wrapped in a little bubble of water.
+  const SCALE = [329.63, 392.0, 440.0, 523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+  function plink(letterIndex) {
+    const f = SCALE[Math.min(letterIndex, SCALE.length - 1)];
+    fx.tone(f, 0, 0.3, 'sine', 0.2);
+    fx.tone(f * 2, 0.01, 0.14, 'triangle', 0.06);
+    fx.sweep(f * 0.6, f * 1.6, 0.14, 'sine', 0.05);      // the bubble
+    fx.noise(0.1, 0.02, 0.035, 2600, 'bandpass');
+  }
+
+  // Wrong letter: the vent burps and goes quiet. Daft, not scary.
+  function gulp() {
+    fx.sweep(230, 64, 0.55, 'sine', 0.16);
+    fx.noise(0.3, 0, 0.09, 260, 'lowpass');
+    fx.tone(98, 0.22, 0.2, 'triangle', 0.07);
+  }
+
+  function ping() {
+    fx.tone(1396.9, 0, 0.5, 'sine', 0.1);
+    fx.tone(2093.0, 0.02, 0.3, 'sine', 0.05);
+  }
+
+  function clack() {
+    fx.noise(0.05, 0, 0.16, 3200, 'bandpass');
+    fx.tone(880, 0, 0.05, 'square', 0.05);
+  }
+
+  function flap() {
+    fx.noise(0.3, 0, 0.07, 700, 'lowpass');
+    fx.sweep(180, 90, 0.3, 'sine', 0.05);
+  }
+
+  function pop() {
+    fx.sweep(160, 640, 0.13, 'sine', 0.18);
+    fx.tone(880, 0.1, 0.12, 'triangle', 0.08);
+  }
+
+  function rumble(dur) {
+    fx.noise(dur, 0, 0.11, 180, 'lowpass');
+    fx.sweep(70, 130, dur, 'triangle', 0.06);
+  }
+
+  function boom() {
+    fx.noise(0.9, 0, 0.26, 240, 'lowpass');
+    fx.sweep(160, 40, 0.8, 'sawtooth', 0.14);
+  }
+
+  function shimmer(startIn) {
+    [1046.5, 1318.5, 1567.98, 2093.0].forEach((f, i) => {
+      fx.tone(f, startIn + i * 0.1, 0.3, 'sine', 0.09);
+    });
+  }
+
+  function fanfare() {
+    [392.0, 523.25, 659.25, 783.99].forEach((f, i) => {
+      fx.tone(f, i * 0.13, 0.34, 'sine', 0.17);
+      fx.tone(f * 2, i * 0.13 + 0.01, 0.16, 'triangle', 0.05);
+    });
+    fx.noise(0.5, 0.5, 0.05, 900, 'lowpass');           // a swell of warm water
+  }
+
+  function bigFanfare() {
+    [392.0, 523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+      fx.tone(f, i * 0.12, 0.38, 'sine', 0.17);
+      fx.tone(f * 2, i * 0.12 + 0.01, 0.18, 'triangle', 0.05);
+    });
+    fx.tone(1567.98, 0.8, 0.8, 'sine', 0.11);
+    fx.noise(0.7, 0.76, 0.07, 800, 'lowpass');
+  }
+
+  /* ---------- the vent hiccup (the wrong-letter animation) ---------- */
+
+  let stallTimer = null;
+  function stallVent() {
+    clearTimeout(stallTimer);
+    ventStack.classList.remove('stalled');
+    // a reflow, or re-adding the class in the same frame wouldn't restart the cough
+    void ventStack.getBoundingClientRect();
+    ventStack.classList.add('stalled');
+    stallTimer = setTimeout(() => ventStack.classList.remove('stalled'), 1000);
+  }
+
+  let duckTimer = null;
+  function duckAnchor() {
+    clearTimeout(duckTimer);
+    anchor.classList.remove('ducking');
+    void anchor.getBoundingClientRect();
+    anchor.classList.add('ducking');
+    duckTimer = setTimeout(() => anchor.classList.remove('ducking'), 1100);
+  }
+
+  /* ---------- celebrations ---------- */
+
+  const scenes = {
+    crab: {
+      caption: 'A ghost crab scuttles over to say hello!',
+      duration: 6200,
+      // a claw-clack on every sideways step, then a happy little chirp
+      start() {
+        const beats = [];
+        for (let i = 0; i < 7; i++) beats.push([420 + i * 300, clack]);
+        beats.push([2700, () => { fx.tone(659.25, 0, 0.2, 'sine', 0.13); fx.tone(880, 0.14, 0.26, 'sine', 0.13); }]);
+        return E.steps(beats);
+      },
+    },
+
+    octopus: {
+      caption: 'A dumbo octopus flaps by on its little ears!',
+      duration: 6400,
+      start() {
+        const beats = [];
+        for (let i = 0; i < 9; i++) beats.push([400 + i * 560, flap]);
+        beats.push([3700, () => shimmer(0)]);
+        return E.steps(beats);
+      },
+    },
+
+    pompeii: {
+      caption: 'The Pompeii worms pop out for a party!',
+      duration: 6400,
+      // one pop per worm, matching the --d delays in theme.css, over a bouncy bass
+      start() {
+        const beats = [[500, pop], [900, pop], [1300, pop], [1700, pop], [2100, pop]];
+        for (let i = 0; i < 8; i++) {
+          beats.push([700 + i * 560, () => {
+            fx.tone(146.83 + (i % 3) * 49, 0, 0.16, 'triangle', 0.09);
+            fx.noise(0.1, 0, 0.05, 300, 'lowpass');
+          }]);
+        }
+        return E.steps(beats);
+      },
+    },
+
+    alvin: {
+      caption: 'Alvin the submarine comes down to visit!',
+      duration: 6600,
+      start() {
+        return E.steps([
+          [300, () => fx.sweep(90, 150, 2.6, 'sawtooth', 0.06)],   // thrusters, descending
+          [900, ping],
+          [2000, ping],
+          [3400, () => { fx.tone(523.25, 0, 0.24, 'square', 0.1); fx.tone(783.99, 0.2, 0.34, 'square', 0.1); }],
+          [4600, ping],
+        ]);
+      },
+    },
+
+    isopod: {
+      caption: 'A giant isopod rolls in like a marble — and unrolls!',
+      duration: 6400,
+      start() {
+        return E.steps([
+          [320, () => rumble(2.3)],
+          [2500, () => { pop(); fx.sweep(300, 900, 0.3, 'triangle', 0.14); }],
+          [3400, () => shimmer(0)],
+        ]);
+      },
+    },
+
+    eelpout: {
+      caption: 'A vent eelpout swims over for a hello!',
+      duration: 6800,
+      start() {
+        const beats = [];
+        for (let i = 0; i < 7; i++) beats.push([400 + i * 620, () => fx.noise(0.34, 0, 0.055, 520, 'lowpass')]);
+        beats.push([4600, () => { fx.tone(587.33, 0, 0.22, 'sine', 0.13); fx.tone(880, 0.18, 0.3, 'sine', 0.13); }]);
+        return E.steps(beats);
+      },
+    },
+
+    yeticrab: {
+      caption: 'A yeti crab dances with its furry arms!',
+      duration: 6400,
+      // a bop on every beat of the dance, matching the 0.62s arm swing
+      start() {
+        const beats = [];
+        for (let i = 0; i < 10; i++) {
+          beats.push([400 + i * 620, () => {
+            fx.tone(196 + (i % 4) * 65.4, 0, 0.16, 'triangle', 0.1);
+            fx.noise(0.08, 0, 0.06, 2400, 'bandpass');
+          }]);
+        }
+        return E.steps(beats);
+      },
+    },
+
+    clams: {
+      caption: 'The giant clams open up and sing!',
+      duration: 6400,
+      // one soft note per clam, on the frame its shell gapes open
+      start() {
+        const notes = [392.0, 493.88, 587.33, 659.25];
+        const beats = [];
+        for (let round = 0; round < 3; round++) {
+          [600, 1100, 1600, 2100].forEach((t, i) => {
+            beats.push([t + round * 1500, () => {
+              fx.tone(notes[i], 0, 0.5, 'sine', 0.13);
+              fx.noise(0.2, 0, 0.05, 900, 'lowpass');
+            }]);
+          });
+        }
+        return E.steps(beats.filter(([t]) => t < 6200));
+      },
+    },
+
+    nodule: {
+      caption: 'Spellworm finds tasty manganese minerals!',
+      duration: 8400,
+      start(scene) {
+        const reach = scene.querySelector('.reacher .plume');
+        const cancel = E.steps([
+          [900, boom],
+          [1200, () => fx.sweep(120, 420, 2.2, 'sine', 0.07)],     // the nodule rising
+          [3400, () => { reach.classList.add('happy'); shimmer(0); }],
+          [3600, bigFanfare],
+        ]);
+        return () => { cancel(); reach.classList.remove('happy'); };
+      },
+    },
+  };
+
+  E.boot({
+    name: 'Spellworms',
+    hint: 'Help Spellworm spell it!',
+    addWordLabel: 'Add a word for Spellworm to spell:',
+
+    words: window.SpellWords.WORDS,
+    celebrations: window.SpellWords.CELEBRATIONS,
+    scenes,
+
+    onCorrect({ tileEl, index }) {
+      plink(index);
+      const mineral = fx.rand(MINERALS);
+      fx.flyTo({
+        proto: mineral,
+        size: 76,
+        viewBox: MINERAL_BOX,
+        fromEl: tileEl,
+        toEl: wormMouth,
+        spin: 280,
+        onArrive() {
+          fx.mood(plume, 'munching', 900, MOODS);
+          fx.addToTray(mineral, MINERAL_BOX);
+        },
+      });
+    },
+
+    // no critter here — the vent itself stops blowing, and she ducks into her tube
+    onIncorrect() {
+      gulp();
+      stallVent();
+      duckAnchor();
+      fx.mood(plume, 'yucking', 1100, MOODS);
+    },
+
+    // the finale saves its big noise for the moment she actually reaches the nodule
+    onWordComplete() {
+      fanfare();
+    },
+  });
+})();
+</script>
+</body>
+</html>
