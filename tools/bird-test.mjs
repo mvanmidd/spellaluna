@@ -20,7 +20,7 @@ function send(method, params = {}) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 await send('Page.enable');
-await send('Page.navigate', { url: `file://${process.cwd()}/index.html` });
+await send('Page.navigate', { url: `file://${process.cwd()}/themes/spellaluna/index.html` });
 await sleep(700);
 await send('Runtime.evaluate', { expression: `(() => {
   const d = document.createElement('div');

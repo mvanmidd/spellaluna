@@ -25,7 +25,7 @@ async function evaluate(expr) {
 }
 
 await send('Page.enable');
-await send('Page.navigate', { url: `file://${process.cwd()}/index.html` });
+await send('Page.navigate', { url: `file://${process.cwd()}/themes/spellaluna/index.html` });
 await sleep(800);
 
 const out = await evaluate(`(() => {

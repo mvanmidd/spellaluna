@@ -1,13 +1,20 @@
 /*
- * Drives the game in headless Chrome via the DevTools protocol (no dependencies;
- * uses Node's built-in WebSocket). Types through words, takes screenshots into
- * .shots/, and fails loudly on any console error.
+ * Plays a theme end to end in headless Chrome via the DevTools protocol (no dependencies;
+ * uses Node's built-in WebSocket). Types through several words — correctly and
+ * incorrectly — screenshots into .shots/, and fails loudly on any console error.
  *
- * Usage: start Chrome first, then `node tools/snap.mjs`
+ * Usage: start Chrome first, then
+ *   node tools/snap.mjs [theme] [wordCount]
+ *   node tools/snap.mjs spellaluna
+ *   node tools/snap.mjs spellasaurus 3
  */
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 
 const PORT = process.env.CDP_PORT || 9222;
+const theme = process.argv[2] || 'spellaluna';
+const wordCount = Number(process.argv[3] || 3);
+
+mkdirSync('.shots', { recursive: true });
 
 const targets = await (await fetch(`http://127.0.0.1:${PORT}/json`)).json();
 const page = targets.find((t) => t.type === 'page');
@@ -51,7 +58,7 @@ async function evaluate(expr) {
 
 async function shot(name) {
   const r = await send('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(`.shots/${name}.png`, Buffer.from(r.data, 'base64'));
+  writeFileSync(`.shots/${theme}-${name}.png`, Buffer.from(r.data, 'base64'));
   console.log('shot:', name);
 }
 
@@ -61,9 +68,16 @@ async function press(key) {
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code });
 }
 
-// Wait (up to 12s) for the celebration to finish and the next word to render.
+const currentWord = () => evaluate(`document.getElementById('tiles').textContent`);
+
+/* Which celebration scene is on screen right now, if any. */
+const playingScene = () => evaluate(
+  `(document.querySelector('#celebration .scene.playing') || {}).id || ''`
+);
+
+/* Wait (up to 14s) for the celebration to finish and the next word to render. */
 async function waitForNewWord(prevWord) {
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 70; i++) {
     await sleep(200);
     const word = await evaluate(
       `document.getElementById('celebration').hidden ? document.getElementById('tiles').textContent : ''`
@@ -75,64 +89,56 @@ async function waitForNewWord(prevWord) {
 
 await send('Runtime.enable');
 await send('Page.enable');
-await send('Emulation.setDeviceMetricsOverride', { width: 1200, height: 800, deviceScaleFactor: 1, mobile: false });
+await send('Emulation.setDeviceMetricsOverride', { width: 1200, height: 820, deviceScaleFactor: 1, mobile: false });
 
-await send('Page.navigate', { url: `file://${process.cwd()}/index.html` });
+await send('Page.navigate', { url: `file://${process.cwd()}/themes/${theme}/index.html` });
 await sleep(900);
 await shot('01-start');
 
 // begin the game
 await press('x');
 await sleep(700);
-const word = await evaluate(`document.getElementById('tiles').textContent`);
-console.log('word:', word);
-if (!/^[A-Z]{2,5}$/.test(word)) throw new Error('no word rendered: ' + JSON.stringify(word));
+let word = await currentWord();
+console.log('word 1:', word);
+if (!/^[A-Z]{2,20}$/.test(word)) throw new Error('no word rendered: ' + JSON.stringify(word));
 await shot('02-word');
 
-// type the first letter correctly, catch the fruit mid-flight
+// one correct letter — catch the treat mid-flight
 await press(word[0].toLowerCase());
-await sleep(350);
-await shot('03-fruit-flying');
+await sleep(320);
+await shot('03-treat-flying');
 
-// wrong letter -> bug + yuck face
+// a wrong letter — the critter and the unhappy face
 const wrong = word[1] === 'Z' ? 'Q' : 'Z';
 await press(wrong.toLowerCase());
 await sleep(500);
-await shot('04-bug');
-await sleep(1500);
-
-// finish the word -> first celebration (hug)
-for (const ch of word.slice(1)) {
-  await press(ch.toLowerCase());
-  await sleep(450);
-}
-const doneCount = await evaluate(`document.querySelectorAll('.tile.done').length`);
-console.log('tiles done:', doneCount, '/', word.length);
+await shot('04-wrong-letter');
+const progress = await evaluate(`document.querySelectorAll('.tile.done').length`);
+if (progress !== 1) throw new Error(`a wrong letter cost progress: ${progress} tiles done, expected 1`);
 await sleep(1200);
-await shot('05-celebration-hug-early');
-await sleep(2800);
-await shot('06-celebration-hug-late');
 
-// word 2 -> fly celebration (jump from nest, fall, flap)
-const word2 = await waitForNewWord(word);
-console.log('word 2:', word2);
-for (const ch of word2) { await press(ch.toLowerCase()); await sleep(120); }
-await sleep(2400);
-await shot('07a-celebration-fly-leap');
-await sleep(1800);
-await shot('07b-celebration-fly-soar');
+// finish this word and every following one, screenshotting each celebration
+const seen = [];
+for (let n = 1; n <= wordCount; n++) {
+  for (const ch of word.slice(n === 1 ? 1 : 0)) {
+    await press(ch.toLowerCase());
+    await sleep(n === 1 ? 260 : 110);
+  }
+  await sleep(1800);
+  const scene = await playingScene();
+  seen.push(scene);
+  console.log(`word ${n} (${word}) ->`, scene || '(no scene)');
+  if (!scene) throw new Error('no celebration scene playing after ' + word);
+  await shot(`05-${n}-${scene.replace('scene-', '')}`);
+  await sleep(1600);
+  await shot(`06-${n}-${scene.replace('scene-', '')}-late`);
+  if (n < wordCount) {
+    word = await waitForNewWord(word);
+    console.log(`word ${n + 1}:`, word);
+  }
+}
 
-// word 3 -> mama celebration
-const word3 = await waitForNewWord(word2);
-console.log('word 3:', word3);
-for (const ch of word3) { await press(ch.toLowerCase()); await sleep(120); }
-await sleep(4200);
-await shot('08-celebration-mama');
-
-// back to play for word 4
-const word4 = await waitForNewWord(word3);
-console.log('word 4:', word4);
-await shot('09-word4');
+console.log('celebrations seen:', seen.join(', '));
 
 if (errors.length) {
   console.error('CONSOLE ERRORS:\n' + errors.join('\n'));

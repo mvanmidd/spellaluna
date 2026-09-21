@@ -1,4 +1,4 @@
-# Spellaluna — Plan
+# Spelling games — Plan
 
 A single-page spelling game for a 2-year-old (with a parent at the keyboard), starring
 Spellaluna the fruit bat — who loves mangos, hates juicy bugs, likes hanging upside down,
@@ -78,3 +78,53 @@ and has three bird friends: Pip, Flitter, and Flap.
 - [x] Hug rework: birds hop in, Spellaluna wraps her wings around them (pivoting hug wings)
 - [x] Fly rework: all four leap from the nest, fall with wings folded, then flap and soar
   (wing snap-open timed from JS)
+
+
+## Iteration 3: engine / theme split + Spellasaurus
+
+Adding a second game made it worth separating the parts that never change from the parts
+that are entirely art. The shared code isn't large (~280 lines), but it carries the
+bug fixes that were expensive to find the first time — SVG `hidden` needs the attribute
+not the property, re-adding `.playing` needs a double `requestAnimationFrame`, speech
+has to be lowercased or it reads "capital B", and the AudioContext must be unlocked
+inside the user gesture. Those should exist once, not once per game.
+
+### Engine (theme-free)
+
+- `engine/rules.js` — word queue, letter matching, and a celebration selector that covers
+  both games: a `pool` walked in order (`pick: 'cycle'`) or drawn at random without
+  immediate repeats (`pick: 'random'`), plus an optional `finale` every Nth word.
+- `engine/fx.js` — `tone`/`sweep`/`noise` audio primitives, speech, the sprite factory,
+  `flyTo` (tile → the hero's mouth) and `crawlPast` (a critter across the tiles), the tray.
+- `engine/engine.js` — phase machine, keyboard input, tiles, the celebration sequencer,
+  the add-a-word modal and the mute button. It injects the chrome that has no theme
+  content at all, so a theme page is art and nothing else.
+- `engine/engine.css` — tiles, overlays, modal; every colour comes from a custom property
+  so a daylight theme works as well as a night one.
+
+### Theme contract
+
+`SpellEngine.boot({ words, celebrations, scenes, onCorrect, onIncorrect, onWordComplete })`.
+Each celebration name needs a `#scene-<name>` in the page and an entry in `scenes` with a
+caption, a duration, and an optional `start(sceneEl)` for timed steps, which returns a
+cleanup function. `test/themes.test.cjs` checks the wiring for every theme.
+
+### Spellasaurus
+
+- Brontosaurus drawn in three pieces — body, neck (pivoting at the shoulder), tail
+  (pivoting at the hip) — so scenes can articulate her. `#bronto-proto` glues them
+  together for static art.
+- 20 words, 3–13 letters, EGG through TYRANNOSAURUS. Tiles now size themselves to the
+  word length so the long ones still fit on one line.
+- Correct letter → a star-shaped leaf flies to her mouth; wrong letter → a dragonfly.
+- Four happy animations picked at random (snuggle, splash, tail crack, friends), and the
+  golden leaf at the top of the tree as the finale every third word.
+
+### Progress
+
+- [x] Engine extracted; Spellaluna migrated onto it and verified unchanged end to end
+- [x] Rules generalised (random picks, finale every Nth word) — a test caught the finale
+      throwing off the cycle position
+- [x] Spellasaurus art, scenes, sound design and choreography
+- [x] Launcher page at the repo root
+- [x] `tools/snap.mjs` takes a theme; `tools/scene.mjs` added for art iteration

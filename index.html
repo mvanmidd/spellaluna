@@ -3,365 +3,78 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spellaluna</title>
-<link rel="stylesheet" href="style.css">
+<title>Spelling games</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: "Chalkboard SE", "Comic Sans MS", "Marker Felt", "Trebuchet MS", sans-serif;
+    background: radial-gradient(ellipse at 50% -10%, #33456f 0%, #1a2456 45%, #0d1330 100%);
+    color: #f3efe0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 34px;
+    padding: 24px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(28px, 5vw, 52px);
+    letter-spacing: 0.06em;
+    color: #ffd166;
+    text-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+  }
+  .games {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    justify-content: center;
+  }
+  a.game {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: min(38vw, 320px);
+    min-width: 240px;
+    padding: 28px 24px 24px;
+    border-radius: 26px;
+    border: 3px solid rgba(243, 239, 224, 0.28);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  a.game:hover, a.game:focus {
+    transform: translateY(-6px) scale(1.03);
+    border-color: #ffd166;
+    outline: none;
+  }
+  a.game .art { font-size: clamp(56px, 10vw, 92px); line-height: 1.1; }
+  a.game .name { font-size: clamp(22px, 3.4vw, 34px); font-weight: bold; letter-spacing: 0.05em; }
+  a.game .blurb { font-size: clamp(13px, 1.8vw, 17px); opacity: 0.75; text-align: center; }
+  .luna { background: linear-gradient(180deg, rgba(90, 70, 160, 0.4), rgba(20, 26, 66, 0.6)); }
+  .saurus { background: linear-gradient(180deg, rgba(90, 160, 110, 0.4), rgba(22, 60, 40, 0.6)); }
+  .foot { font-size: 14px; opacity: 0.5; }
+</style>
 </head>
 <body>
-
-<!-- ======= shared art (referenced everywhere via <use>) ======= -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-
-    <!-- Spellaluna the fruit bat, drawn upright with her feet at the origin.
-         Pose/mood is controlled by CSS custom properties that cascade into <use>. -->
-    <path id="bat-wing-shape"
-      d="M 30,-102 C 58,-148 128,-152 154,-108
-         C 150,-104 146,-100 140,-98
-         Q 124,-66 104,-76 Q 84,-52 64,-70 Q 46,-58 30,-84 Z"
-      fill="var(--bat-wing, #5b3a26)"/>
-
-    <g id="bat-proto">
-      <!-- spread, flapping wings (visible while flying / celebrating) -->
-      <g style="display: var(--wings-spread, none)">
-        <g>
-          <use href="#bat-wing-shape"/>
-          <animateTransform attributeName="transform" type="rotate" additive="sum"
-            values="-6 30 -95; -34 30 -95; -6 30 -95" dur="0.55s" repeatCount="indefinite"/>
-        </g>
-        <g transform="scale(-1,1)">
-          <use href="#bat-wing-shape"/>
-          <animateTransform attributeName="transform" type="rotate" additive="sum"
-            values="-6 30 -95; -34 30 -95; -6 30 -95" dur="0.55s" repeatCount="indefinite"/>
-        </g>
-      </g>
-
-      <!-- legs + feet -->
-      <line x1="10" y1="-4" x2="14" y2="-30" stroke="var(--bat-wing, #5b3a26)" stroke-width="5" stroke-linecap="round"/>
-      <line x1="-10" y1="-4" x2="-14" y2="-30" stroke="var(--bat-wing, #5b3a26)" stroke-width="5" stroke-linecap="round"/>
-      <ellipse cx="10" cy="-3" rx="6" ry="4" fill="var(--bat-body, #8a5a3b)"/>
-      <ellipse cx="-10" cy="-3" rx="6" ry="4" fill="var(--bat-body, #8a5a3b)"/>
-
-      <!-- body + belly -->
-      <ellipse cx="0" cy="-78" rx="40" ry="52" fill="var(--bat-body, #8a5a3b)"/>
-      <ellipse cx="0" cy="-70" rx="25" ry="34" fill="var(--bat-belly, #caa07a)"/>
-
-      <!-- folded wings, wrapped like a cloak (visible while hanging) -->
-      <g style="display: var(--wings-folded, block)">
-        <path d="M 34,-112 C 60,-104 64,-64 44,-32 C 35,-19 24,-30 27,-54 C 30,-76 30,-94 34,-112 Z"
-          fill="var(--bat-wing, #5b3a26)"/>
-        <path d="M -34,-112 C -60,-104 -64,-64 -44,-32 C -35,-19 -24,-30 -27,-54 C -30,-76 -30,-94 -34,-112 Z"
-          fill="var(--bat-wing, #5b3a26)"/>
-      </g>
-
-      <!-- ears (behind head) -->
-      <path d="M 8,-178 L 28,-224 L 38,-176 Z" fill="var(--bat-body, #8a5a3b)"/>
-      <path d="M -8,-178 L -28,-224 L -38,-176 Z" fill="var(--bat-body, #8a5a3b)"/>
-      <path d="M 16,-182 L 27,-212 L 32,-180 Z" fill="var(--bat-ear, #d98c80)"/>
-      <path d="M -16,-182 L -27,-212 L -32,-180 Z" fill="var(--bat-ear, #d98c80)"/>
-
-      <!-- head + muzzle -->
-      <circle cx="0" cy="-150" r="36" fill="var(--bat-body, #8a5a3b)"/>
-      <ellipse cx="0" cy="-138" rx="21" ry="15" fill="var(--bat-belly, #caa07a)"/>
-
-      <!-- eyes: open -->
-      <g style="display: var(--eyes-open, block)">
-        <circle cx="14" cy="-156" r="7" fill="#241409"/>
-        <circle cx="-14" cy="-156" r="7" fill="#241409"/>
-        <circle cx="16" cy="-158" r="2.4" fill="#fff"/>
-        <circle cx="-12" cy="-158" r="2.4" fill="#fff"/>
-      </g>
-      <!-- eyes: happy (closed arcs) -->
-      <g style="display: var(--eyes-happy, none)" stroke="#241409" stroke-width="3"
-         stroke-linecap="round" fill="none">
-        <path d="M 7,-155 Q 14,-162 21,-155"/>
-        <path d="M -7,-155 Q -14,-162 -21,-155"/>
-      </g>
-
-      <!-- nose -->
-      <path d="M -4,-145 L 4,-145 L 0,-139 Z" fill="#4a2c1a"/>
-
-      <!-- mouths -->
-      <path style="display: var(--mouth-smile, block)" d="M -10,-134 Q 0,-125 10,-134"
-        stroke="#4a2c1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-      <g style="display: var(--mouth-munch, none)">
-        <ellipse cx="0" cy="-130" rx="7" ry="5.5" fill="#5c2a2a"/>
-        <ellipse cx="0" cy="-127" rx="4" ry="2.5" fill="#e0707f"/>
-      </g>
-      <g style="display: var(--mouth-yuck, none)">
-        <path d="M -10,-132 Q -5,-137 0,-132 Q 5,-127 10,-132"
-          stroke="#4a2c1a" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        <ellipse cx="0" cy="-126" rx="3.6" ry="4.5" fill="#e0707f"/>
-      </g>
-    </g>
-
-    <!-- bird friend (Pip / Flitter / Flap by color vars) — a sparrow about Spellaluna's
-         size. Feet at origin, facing right. Wing pose via CSS vars like the bat. -->
-    <g id="bird-proto">
-      <!-- tail -->
-      <path d="M -30,-62 C -62,-54 -80,-32 -86,-14 C -68,-26 -46,-40 -26,-46 Z"
-        fill="var(--bird-wing, #5e4228)"/>
-      <!-- legs -->
-      <line x1="-10" y1="-22" x2="-12" y2="0" stroke="#b97a2e" stroke-width="4.5" stroke-linecap="round"/>
-      <line x1="10" y1="-22" x2="12" y2="0" stroke="#b97a2e" stroke-width="4.5" stroke-linecap="round"/>
-      <line x1="-12" y1="0" x2="-19" y2="2" stroke="#b97a2e" stroke-width="3.5" stroke-linecap="round"/>
-      <line x1="12" y1="0" x2="5" y2="2" stroke="#b97a2e" stroke-width="3.5" stroke-linecap="round"/>
-      <!-- body + breast -->
-      <ellipse cx="0" cy="-80" rx="46" ry="56" fill="var(--bird-body, #8a6342)"/>
-      <ellipse cx="12" cy="-62" rx="28" ry="38" fill="var(--bird-belly, #e8dcc8)"/>
-      <!-- folded wing with white wing-bars -->
-      <g style="display: var(--bird-wings-folded, block)">
-        <ellipse cx="-10" cy="-82" rx="24" ry="42" transform="rotate(18 -10 -82)"
-          fill="var(--bird-wing, #5e4228)"/>
-        <path d="M -22,-96 L -2,-88" stroke="#f2ead9" stroke-width="4" stroke-linecap="round"/>
-        <path d="M -24,-76 L -6,-68" stroke="#f2ead9" stroke-width="4" stroke-linecap="round"/>
-      </g>
-      <!-- spread, flapping wing (visible while flying) — swept up and back -->
-      <g style="display: var(--bird-wings-spread, none)">
-        <g>
-          <path d="M -2,-90 C -25,-150 -85,-170 -130,-148 C -105,-122 -88,-98 -58,-80 C -33,-67 -12,-72 -2,-90 Z"
-            fill="var(--bird-wing, #5e4228)"/>
-          <path d="M -35,-116 C -57,-128 -83,-136 -103,-138" stroke="#f2ead9" stroke-width="5"
-            fill="none" stroke-linecap="round"/>
-          <animateTransform attributeName="transform" type="rotate" additive="sum"
-            values="-10 -2 -90; 28 -2 -90; -10 -2 -90" dur="0.45s" repeatCount="indefinite"/>
-        </g>
-      </g>
-      <!-- head: brown cap, white cheek, black bib -->
-      <circle cx="14" cy="-145" r="33" fill="var(--bird-body, #8a6342)"/>
-      <path d="M -19,-145 A 33 33 0 0 1 47,-145 Z" fill="var(--bird-cap, #5e4228)"/>
-      <ellipse cx="26" cy="-131" rx="13" ry="10" fill="#f2ead9"/>
-      <circle cx="22" cy="-148" r="5.5" fill="#241409"/>
-      <circle cx="24" cy="-150" r="1.8" fill="#fff"/>
-      <path d="M 44,-142 L 62,-136 L 44,-128 Z" fill="#4a3a2e"/>
-      <ellipse cx="32" cy="-112" rx="9" ry="12" fill="#2b2b2b"/>
-    </g>
-
-    <!-- fruits (centered on origin, ~40px tall) -->
-    <g id="fruit-mango">
-      <line x1="7" y1="-15" x2="11" y2="-22" stroke="#6d4c2a" stroke-width="2.5" stroke-linecap="round"/>
-      <ellipse cx="15" cy="-22" rx="7.5" ry="3.6" transform="rotate(-30 15 -22)" fill="#5f9e4c"/>
-      <ellipse cx="0" cy="2" rx="15" ry="19" transform="rotate(-18 0 2)" fill="#f4a93c"/>
-      <ellipse cx="-4" cy="-3" rx="8" ry="11" transform="rotate(-18 -4 -3)" fill="#e8703a" opacity="0.6"/>
-    </g>
-    <g id="fruit-banana">
-      <path d="M -16,8 C -13,-7 4,-17 16,-13 C 18,-10 16,-7 12,-8 C 3,-9 -6,-2 -9,9 C -10,13 -15,12 -16,8 Z"
-        fill="#f7d154" stroke="#dcb53e" stroke-width="1.5"/>
-      <circle cx="15" cy="-12" r="1.8" fill="#8a6b27"/>
-      <circle cx="-14" cy="10" r="1.8" fill="#8a6b27"/>
-    </g>
-    <g id="fruit-fig">
-      <line x1="0" y1="-17" x2="2" y2="-23" stroke="#6d4c2a" stroke-width="2.5" stroke-linecap="round"/>
-      <path d="M 0,-18 C 2,-10 14,-7 14,4 A 14 14 0 1 1 -14,4 C -14,-7 -2,-10 0,-18 Z" fill="#7d4a8d"/>
-      <circle cx="0" cy="7" r="6" fill="#b06ec2" opacity="0.55"/>
-    </g>
-
-    <!-- a juicy bug (cute, not gross), facing right -->
-    <g id="bug-proto">
-      <g stroke="#4a6b2a" stroke-width="2" stroke-linecap="round">
-        <line x1="-10" y1="4" x2="-14" y2="11"/>
-        <line x1="-3" y1="6" x2="-4" y2="12"/>
-        <line x1="5" y1="5" x2="8" y2="11"/>
-      </g>
-      <ellipse cx="-2" cy="0" rx="15" ry="10" fill="#8bc34a"/>
-      <path d="M -9,-9 C -8,-3 -8,3 -9,9" stroke="#6da33b" stroke-width="3" fill="none"/>
-      <path d="M -1,-10 C 0,-4 0,4 -1,10" stroke="#6da33b" stroke-width="3" fill="none"/>
-      <circle cx="13" cy="-1" r="8" fill="#6da33b"/>
-      <path d="M 14,-8 C 15,-14 19,-16 22,-15" stroke="#4a6b2a" stroke-width="2" fill="none" stroke-linecap="round"/>
-      <circle cx="22.5" cy="-15.5" r="1.9" fill="#4a6b2a"/>
-      <circle cx="12" cy="-4" r="3.6" fill="#fff"/>
-      <circle cx="13" cy="-3.6" r="1.7" fill="#26190f"/>
-      <circle cx="18" cy="-2.5" r="2.8" fill="#fff"/>
-      <circle cx="18.7" cy="-2.2" r="1.4" fill="#26190f"/>
-      <path d="M 13,4 Q 16,6 19,4" stroke="#3d5a23" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-    </g>
-
-    <!-- a single bat wing pivoted at the shoulder (origin) — for the wrap-around hug -->
-    <g id="hug-wing">
-      <use href="#bat-wing-shape" transform="translate(-30, 95)"/>
-    </g>
-
-    <!-- nest, heart, star -->
-    <g id="nest-proto">
-      <path d="M -62,-6 C -58,30 58,30 62,-6 C 40,5 -40,5 -62,-6 Z" fill="#8d6e4a"/>
-      <path d="M -50,9 Q 0,21 50,9" stroke="#a98a60" stroke-width="3" fill="none"/>
-      <path d="M -56,0 Q 0,13 56,0" stroke="#6e4f33" stroke-width="3" fill="none"/>
-      <ellipse cx="0" cy="-6" rx="62" ry="10" fill="#75573a"/>
-      <ellipse cx="0" cy="-6" rx="48" ry="6.5" fill="#54402a"/>
-    </g>
-    <path id="heart-proto" fill="#ff6b81"
-      d="M 0,-4 C -4,-13 -17,-13 -17,-2 C -17,8 0,17 0,17 C 0,17 17,8 17,-2 C 17,-13 4,-13 0,-4 Z"/>
-    <path id="star-proto" fill="#ffd166"
-      d="M 0,-13 L 3.8,-4 L 13,-4 L 5.5,1.8 L 8,11 L 0,5.5 L -8,11 L -5.5,1.8 L -13,-4 L -3.8,-4 Z"/>
-  </defs>
-</svg>
-
-<div id="app">
-
-  <!-- ======= main scene: night sky, branch, Spellaluna + bird friends ======= -->
-  <svg id="scene" viewBox="0 0 1000 430" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-    <!-- stars -->
-    <circle class="star" cx="60" cy="70" r="3"/>
-    <circle class="star" cx="150" cy="180" r="2"/>
-    <circle class="star" cx="245" cy="330" r="2.5"/>
-    <circle class="star" cx="430" cy="120" r="2"/>
-    <circle class="star" cx="520" cy="290" r="3"/>
-    <circle class="star" cx="610" cy="170" r="2"/>
-    <circle class="star" cx="700" cy="320" r="2.5"/>
-    <circle class="star" cx="790" cy="220" r="2"/>
-    <circle class="star" cx="950" cy="300" r="2.5"/>
-    <circle class="star" cx="900" cy="190" r="2"/>
-    <use href="#star-proto" class="star" x="350" y="240" transform="scale(0.8)" transform-origin="350 240"/>
-    <use href="#star-proto" class="star" x="850" y="350" transform="scale(0.7)" transform-origin="850 350"/>
-
-    <!-- moon -->
-    <g id="moon">
-      <circle cx="880" cy="85" r="52" fill="#f6f1d5"/>
-      <circle cx="862" cy="70" r="9" fill="#e7e0bb"/>
-      <circle cx="898" cy="100" r="12" fill="#e7e0bb"/>
-      <circle cx="875" cy="112" r="6" fill="#e7e0bb"/>
-    </g>
-
-    <!-- branch with leaves -->
-    <path d="M -20,52 C 220,36 430,64 640,48 C 800,38 930,56 1020,46"
-      stroke="#6e4a2f" stroke-width="15" stroke-linecap="round" fill="none"/>
-    <g fill="#5f9e4c">
-      <ellipse cx="120" cy="58" rx="16" ry="7" transform="rotate(35 120 58)"/>
-      <ellipse cx="135" cy="50" rx="16" ry="7" transform="rotate(-15 135 50)"/>
-      <ellipse cx="455" cy="70" rx="16" ry="7" transform="rotate(40 455 70)"/>
-      <ellipse cx="470" cy="62" rx="16" ry="7" transform="rotate(-10 470 62)"/>
-      <ellipse cx="845" cy="58" rx="16" ry="7" transform="rotate(35 845 58)"/>
-      <ellipse cx="860" cy="50" rx="16" ry="7" transform="rotate(-15 860 50)"/>
-    </g>
-
-    <!-- Spellaluna hanging upside down, swaying -->
-    <g transform="translate(280, 50)">
-      <g class="sway">
-        <use id="luna" class="bat-use" href="#bat-proto" transform="rotate(180)"/>
-        <!-- invisible anchor marking her mouth: fruit flies here -->
-        <circle id="luna-mouth" cx="0" cy="132" r="2" fill="none" pointer-events="none"/>
-      </g>
-    </g>
-
-    <!-- Pip, Flitter, and Flap hanging upside down beside her, like she taught them -->
-    <g transform="translate(520, 48)">
-      <g class="sway" style="animation-delay: -1.2s">
-        <use href="#bird-proto" transform="scale(0.8) rotate(180)"
-          style="--bird-body:#9a7148; --bird-belly:#ecdfc8; --bird-wing:#6b4a2a; --bird-cap:#6b4a2a;"/>
-      </g>
-    </g>
-    <g transform="translate(645, 45)">
-      <g class="sway" style="animation-delay: -2.4s">
-        <use href="#bird-proto" transform="scale(0.85) rotate(180)"
-          style="--bird-body:#7a5a3a; --bird-belly:#e5d5bd; --bird-wing:#54402a; --bird-cap:#4e3722;"/>
-      </g>
-    </g>
-    <g transform="translate(770, 43)">
-      <g class="sway" style="animation-delay: -3.3s">
-        <use href="#bird-proto" transform="scale(0.82) rotate(180)"
-          style="--bird-body:#8a6a52; --bird-belly:#efe8dc; --bird-wing:#4a4a4a; --bird-cap:#3d3d3d;"/>
-      </g>
-    </g>
-  </svg>
-
-  <!-- ======= word tiles ======= -->
-  <div id="word-area">
-    <div id="tiles"></div>
-    <div id="hint"></div>
+  <h1>Pick a spelling game</h1>
+  <div class="games">
+    <a class="game luna" href="themes/spellaluna/index.html">
+      <span class="art">🦇🥭</span>
+      <span class="name">Spellaluna</span>
+      <span class="blurb">A fruit bat, her bird friends, and a lot of mangos</span>
+    </a>
+    <a class="game saurus" href="themes/spellasaurus/index.html">
+      <span class="art">🦕🌿</span>
+      <span class="name">Spellasaurus</span>
+      <span class="blurb">A brontosaurus, star leaves, and a golden leaf at the top</span>
+    </a>
   </div>
-
-  <div id="tray" aria-hidden="true"></div>
-</div>
-
-<button id="mute" aria-label="Toggle sound">🔊</button>
-
-<!-- ======= start overlay ======= -->
-<div id="start-overlay" class="overlay">
-  <svg id="start-bat" viewBox="-130 -20 260 280" aria-hidden="true">
-    <line x1="-130" y1="0" x2="130" y2="0" stroke="#6e4a2f" stroke-width="14" stroke-linecap="round"/>
-    <use href="#bat-proto" class="bat-use" transform="rotate(180)"/>
-  </svg>
-  <h1>SPELLALUNA</h1>
-  <p class="subtitle">A spelling adventure with Spellaluna the fruit bat<br>
-    and her friends Pip, Flitter, and Flap</p>
-  <div class="press">Press any key to begin!</div>
-</div>
-
-<!-- ======= celebration overlay ======= -->
-<div id="celebration" class="overlay" hidden>
-  <div id="celebration-word"></div>
-  <div id="celebration-caption"></div>
-
-  <!-- 1st word: Spellaluna wraps her wings around her bird friends -->
-  <svg id="scene-hug" class="scene" viewBox="0 0 800 500" hidden>
-    <use href="#bat-proto" class="bat-use cb-luna hugging happy"/>
-    <use href="#bird-proto" class="bird-use cb-bird1"
-      style="--bird-body:#9a7148; --bird-belly:#ecdfc8; --bird-wing:#6b4a2a; --bird-cap:#6b4a2a;"/>
-    <use href="#bird-proto" class="bird-use cb-bird2"
-      style="--bird-body:#7a5a3a; --bird-belly:#e5d5bd; --bird-wing:#54402a; --bird-cap:#4e3722;"/>
-    <use href="#bird-proto" class="bird-use cb-bird3"
-      style="--bird-body:#8a6a52; --bird-belly:#efe8dc; --bird-wing:#4a4a4a; --bird-cap:#3d3d3d;"/>
-    <use href="#hug-wing" class="hug-wing wing-l"/>
-    <use href="#hug-wing" class="hug-wing wing-r"/>
-    <use href="#heart-proto" class="cb-heart h1"/>
-    <use href="#heart-proto" class="cb-heart h2"/>
-    <use href="#heart-proto" class="cb-heart h3"/>
-    <use href="#heart-proto" class="cb-heart h4"/>
-    <use href="#heart-proto" class="cb-heart h5"/>
-  </svg>
-
-  <!-- 2nd word: everyone jumps from the nest, falls, then flaps and flies -->
-  <svg id="scene-fly" class="scene" viewBox="0 0 800 500" hidden>
-    <circle cx="700" cy="80" r="38" fill="#f6f1d5"/>
-    <circle cx="688" cy="70" r="7" fill="#e7e0bb"/>
-    <circle cx="712" cy="92" r="8" fill="#e7e0bb"/>
-    <circle class="star" cx="120" cy="90" r="3"/>
-    <circle class="star" cx="320" cy="60" r="2.5"/>
-    <circle class="star" cx="520" cy="120" r="3"/>
-    <circle class="star" cx="240" cy="180" r="2"/>
-    <use href="#bat-proto" class="bat-use fly-luna happy"/>
-    <use href="#bird-proto" class="bird-use fly-bird1"
-      style="--bird-body:#9a7148; --bird-belly:#ecdfc8; --bird-wing:#6b4a2a; --bird-cap:#6b4a2a;"/>
-    <use href="#bird-proto" class="bird-use fly-bird2"
-      style="--bird-body:#7a5a3a; --bird-belly:#e5d5bd; --bird-wing:#54402a; --bird-cap:#4e3722;"/>
-    <use href="#bird-proto" class="bird-use fly-bird3"
-      style="--bird-body:#8a6a52; --bird-belly:#efe8dc; --bird-wing:#4a4a4a; --bird-cap:#3d3d3d;"/>
-    <use href="#nest-proto" transform="translate(200, 472) scale(1.8)"/>
-  </svg>
-
-  <!-- 3rd word: Spellaluna finds her mama -->
-  <svg id="scene-mama" class="scene" viewBox="0 0 800 500" hidden>
-    <circle cx="400" cy="90" r="44" fill="#f6f1d5"/>
-    <circle cx="386" cy="78" r="8" fill="#e7e0bb"/>
-    <circle cx="412" cy="102" r="9" fill="#e7e0bb"/>
-    <use href="#bat-proto" class="bat-use cb-mama flying happy"
-      style="--bat-body:#6e452c; --bat-belly:#b08a62; --bat-wing:#452a18; --bat-ear:#c27d70;"/>
-    <use href="#bat-proto" class="bat-use cb-luna2 flying happy"/>
-    <use href="#heart-proto" class="cb-heart h1"/>
-    <use href="#heart-proto" class="cb-heart h2"/>
-    <use href="#heart-proto" class="cb-heart h3"/>
-    <use href="#star-proto" class="cb-star s1"/>
-    <use href="#star-proto" class="cb-star s2"/>
-    <use href="#star-proto" class="cb-star s3"/>
-    <use href="#star-proto" class="cb-star s4"/>
-    <use href="#star-proto" class="cb-star s5"/>
-  </svg>
-</div>
-
-<!-- ======= add-word modal ======= -->
-<div id="add-word-modal" class="overlay" hidden>
-  <div id="add-word-card">
-    <label for="add-word-input">Add a word for Spellaluna to spell:</label>
-    <input id="add-word-input" type="text" maxlength="20"
-           autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
-    <div id="add-word-error" hidden></div>
-    <div id="add-word-buttons">
-      <button id="add-word-confirm">Add word</button>
-      <button id="add-word-cancel">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<script src="logic.js"></script>
-<script src="game.js"></script>
+  <div class="foot">Type the word you see. Press + to add a word of your own.</div>
 </body>
 </html>
