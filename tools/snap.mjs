@@ -7,6 +7,7 @@
  *   node tools/snap.mjs [theme] [wordCount]
  *   node tools/snap.mjs spellaluna
  *   node tools/snap.mjs spellasaurus 3
+ *   BUNDLE=1 node tools/snap.mjs spellasaurus   # play dist/<theme>.html (see tools/bundle.mjs)
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 
@@ -91,7 +92,8 @@ await send('Runtime.enable');
 await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: 1200, height: 820, deviceScaleFactor: 1, mobile: false });
 
-await send('Page.navigate', { url: `file://${process.cwd()}/themes/${theme}/index.html` });
+const pagePath = process.env.BUNDLE ? `dist/${theme}.html` : `themes/${theme}/index.html`;
+await send('Page.navigate', { url: `file://${process.cwd()}/${pagePath}` });
 await sleep(900);
 await shot('01-start');
 

@@ -74,5 +74,12 @@ node tools/scene.mjs spellasaurus goldenleaf 900,2400,3800   # one scene at set 
 
 `tools/probe.mjs` and `tools/bird-test.mjs` are small debugging aids for SVG layout.
 
+## Share it
+
+`node tools/bundle.mjs` writes one self-contained file per game to `dist/`
+(`dist/spellaluna.html`, `dist/spellasaurus.html`, roughly 60–70 KB each) with the engine,
+CSS and theme inlined. Attach one to an email; the recipient saves it and opens it in a
+browser. Pass a theme name to build just one. `dist/` is git-ignored.
+
 See `ADD-GAME.md` to add a third game, and `PLAN.md` for the design plan and
 build progress.
