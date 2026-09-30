@@ -183,9 +183,13 @@ Whole-body motion: animate the wrapper `<g>`'s transform. Articulation: animate 
 part's transform. Both at once is fine — they're independent coordinate systems.
 
 Composition notes: celebration scenes use `viewBox="0 100 800 400"` with the ground around
-`y = 464`. The main scene is full-bleed (`preserveAspectRatio="xMidYMax slice"`, width
-`100vw`), which crops ~60 units off the top on a wide window — **keep treetops and
-anything important below `y ≈ 60`**.
+`y = 464`. The main scene is full-width (width `100vw`) but uses
+`preserveAspectRatio="xMidYMax meet"`, so the whole viewBox is always on screen. **Draw the
+backdrop far past the viewBox** (sky or wall from `x = -2000` to `3000` and up to
+`y = -1500`, the ground flat out to both ends, and a fern or amp or two just outside each
+edge), because on a wide window that's what fills the sides. Don't use `slice`: on a wide,
+short window it crops well over 100 units off the top, which cut off Spellasaurus's tree
+and Greg's head.
 
 ## 6. Palette
 

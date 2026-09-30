@@ -37,8 +37,8 @@ body {
 
 /* ---------- main scene ---------- */
 
-/* Edge to edge, like Spellasaurus: "slice" crops ~58 viewBox units off the top on a
-   wide window, so nothing important lives above y ≈ 60. */
+/* Edge to edge, like Spellasaurus. The svg uses "meet", so the whole viewBox always
+   shows, and the water, seafloor and colony drawn past its edges fill the rest. */
 #scene {
   display: block;
   width: 100vw;
@@ -121,6 +121,9 @@ body {
 #scene .colony .w8  { transform: translate(234px, 374px) scale(0.36) rotate(6deg); }
 #scene .colony .w9  { transform: translate(124px, 378px) scale(0.30) rotate(7deg); }
 #scene .colony .w10 { transform: translate(302px, 370px) scale(0.44) rotate(-6deg); }
+/* two more past the edges of the viewBox, for wide windows */
+#scene .colony .w11 { transform: translate(-60px, 372px) scale(0.42) rotate(5deg); }
+#scene .colony .w12 { transform: translate(1070px, 370px) scale(0.46) rotate(-4deg); }
 
 /* the neighbours sit further back in the gloom */
 #scene .colony .worm {

@@ -44,7 +44,8 @@ body {
 /* ---------- main scene ---------- */
 
 /* The landscape runs edge to edge — a ground line that stopped mid-screen looked odd.
-   "slice" fills the width and crops a little sky off the top, so keep the treetops low. */
+   The svg uses "meet", so the whole viewBox always shows, and the ground and ferns drawn
+   past its edges fill the rest (see the note in index.html). */
 #scene {
   display: block;
   width: 100vw;

@@ -227,9 +227,9 @@ as "hyphen", and the add-a-word modal allows hyphenated words. There's a test in
 - **Drummer arms: rotate the arm to raise it, then counter-rotate the wrist.** The "sticks
   up" finish rotates each arm -110° at the shoulder and the wrist +125°, so the stick ends
   up near vertical. Rotating only the wrist gave sticks pointing sideways.
-- **`snap.mjs` sometimes fails on the first run after switching themes** (`#tiles` is null
-  because the page is read before it finishes navigating). Rerunning passes. That's
-  timing in the harness, not the game.
+- **`for t in "spellworms 4"; do node tools/snap.mjs $t; done` fails in zsh** with
+  `#tiles` null: zsh doesn't word-split `$t`, so the theme name becomes "spellworms 4" and
+  a page that doesn't exist loads. Pass the theme and word count as separate words.
 
 ### Progress
 
@@ -239,3 +239,15 @@ as "hyphen", and the add-a-word modal allows hyphenated words. There's a test in
 - [x] `snap.mjs` spellaluna 3, spellasaurus 4 and spellworms 4 still green
 - [x] `BUNDLE=1 snap.mjs spellodrum 4`: the single-file build plays too
 - [x] Launcher card added
+
+## Iteration 6: whole scene always visible
+
+The main scenes of Spellasaurus and Spellworms used `preserveAspectRatio="xMidYMax slice"`.
+On a wide, short window (1000x542) that crops well over 100 units off the top, which cut
+off the treetop and Spellasaurus's head. Spellodrum had the same problem with Greg's
+head. All three now use `meet`, so the whole viewBox always shows, and the
+backdrop is drawn far past the viewBox (sky or water or wall from x = -2000 to 3000, the
+ground flat out to both ends) with extra ferns, a tree, rocks, mussels, two more colony worms
+and a pair of amps just outside the edges, so wide windows show more of the world instead of
+empty bars. ADD-GAME.md now says to do it this way. Checked at 1000x542, 1600x600,
+1200x820, 700x900 and 390x844.

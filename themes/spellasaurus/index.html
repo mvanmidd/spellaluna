@@ -254,27 +254,41 @@
 <div id="app">
 
   <!-- ======= main scene: Spellasaurus eating star leaves from the tree ======= -->
-  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  <!-- "meet", not "slice": slice cropped the top of the scene off on wide, short windows.
+       The whole viewBox always shows now; the ground and scenery run far past its edges to
+       fill whatever space is left over on either side. -->
+  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
     <circle id="sun" cx="888" cy="96" r="44" fill="#ffe08a"/>
     <g fill="#ffffff" opacity="0.5">
       <ellipse cx="180" cy="104" rx="56" ry="20"/>
       <ellipse cx="226" cy="95" rx="38" ry="16"/>
       <ellipse cx="560" cy="86" rx="44" ry="16"/>
       <ellipse cx="600" cy="93" rx="30" ry="13"/>
+      <ellipse cx="-160" cy="120" rx="50" ry="18"/>
+      <ellipse cx="-122" cy="112" rx="32" ry="14"/>
+      <ellipse cx="1180" cy="110" rx="52" ry="18"/>
+      <ellipse cx="1220" cy="102" rx="34" ry="14"/>
     </g>
+    <use href="#volcano-proto" transform="translate(1260, 370) scale(0.56)" opacity="0.6"/>
     <use href="#volcano-proto" transform="translate(160, 370) scale(0.82)"/>
     <use href="#volcano-proto" transform="translate(340, 370) scale(0.46)" opacity="0.6"/>
 
     <!-- ground -->
-    <path d="M -20,400 L -20,364 C 160,348 420,376 660,360 C 820,350 940,368 1020,358 L 1020,400 Z"
+    <path d="M -2000,420 L -2000,364 L -20,364 C 160,348 420,376 660,360 C 820,350 940,368 1020,358
+             L 3000,358 L 3000,420 Z"
       fill="#7fa64b"/>
-    <path d="M -20,400 L -20,384 C 200,372 480,392 760,378 C 880,372 960,384 1020,378 L 1020,400 Z"
+    <path d="M -2000,420 L -2000,384 L -20,384 C 200,372 480,392 760,378 C 880,372 960,384 1020,378
+             L 3000,378 L 3000,420 Z"
       fill="#6d9340"/>
 
     <use href="#tree-proto" transform="translate(730, 372) scale(0.68)"/>
     <use href="#fern-proto" transform="translate(140, 372) scale(1.0)"/>
     <use href="#fern-proto" transform="translate(944, 376) scale(0.85)"/>
     <use href="#fern-proto" transform="translate(292, 368) scale(0.62)"/>
+    <use href="#fern-proto" transform="translate(-60, 368) scale(0.8)"/>
+    <use href="#fern-proto" transform="translate(-260, 370) scale(1.05)"/>
+    <use href="#fern-proto" transform="translate(1100, 364) scale(0.7)"/>
+    <use href="#tree-proto" transform="translate(1340, 366) scale(0.5)"/>
 
     <!-- Spellasaurus, neck up in the leaves -->
     <g class="dino" transform="translate(516, 370) scale(0.58)">

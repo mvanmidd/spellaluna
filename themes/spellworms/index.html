@@ -567,8 +567,12 @@
 <div id="app">
 
   <!-- ======= main scene: Spellworm's vent field ======= -->
-  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-    <rect x="-20" y="-40" width="1040" height="460" fill="url(#water-grad)"/>
+  <!-- "meet", not "slice": slice cropped the top of the scene off on wide, short windows.
+       The whole viewBox always shows now; the ground and scenery run far past its edges to
+       fill whatever space is left over on either side. -->
+  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+    <rect x="-2000" y="-1500" width="5000" height="1460" fill="#08354f"/>
+    <rect x="-2000" y="-40" width="5000" height="460" fill="url(#water-grad)"/>
     <ellipse cx="716" cy="250" rx="240" ry="200" fill="url(#warm-glow)"/>
 
     <!-- marine snow drifting down through the lights -->
@@ -589,22 +593,31 @@
       <circle class="flake" style="--i:13" cx="290" cy="240" r="2.5"/>
       <circle class="flake" style="--i:14" cx="470" cy="215" r="1.9"/>
       <circle class="flake" style="--i:15" cx="860" cy="245" r="2.2"/>
+      <circle class="flake" style="--i:4"  cx="-90"  cy="100" r="2.2"/>
+      <circle class="flake" style="--i:9"  cx="-220" cy="190" r="2.6"/>
+      <circle class="flake" style="--i:1"  cx="1080" cy="60"  r="2"/>
+      <circle class="flake" style="--i:12" cx="1210" cy="170" r="2.4"/>
     </g>
 
     <!-- far ridge -->
-    <path d="M -20,400 L -20,318 C 90,286 180,320 280,300 C 380,280 470,312 560,296
-             C 680,274 800,306 900,288 C 960,278 1000,296 1020,290 L 1020,400 Z"
+    <path d="M -2000,420 L -2000,318 L -300,318 C -200,290 -100,322 -20,318 C 90,286 180,320 280,300
+             C 380,280 470,312 560,296 C 680,274 800,306 900,288 C 960,278 1000,296 1020,290
+             C 1120,276 1220,312 1320,296 L 3000,296 L 3000,420 Z"
       fill="#0a1725"/>
 
     <!-- seafloor -->
-    <path d="M -20,400 L -20,360 C 140,344 380,374 620,358 C 800,346 930,368 1020,356 L 1020,400 Z"
+    <path d="M -2000,420 L -2000,360 L -20,360 C 140,344 380,374 620,358 C 800,346 930,368 1020,356
+             L 3000,356 L 3000,420 Z"
       fill="#15202d"/>
-    <path d="M -20,400 L -20,382 C 180,370 460,392 740,378 C 870,372 960,384 1020,378 L 1020,400 Z"
+    <path d="M -2000,420 L -2000,382 L -20,382 C 180,370 460,392 740,378 C 870,372 960,384 1020,378
+             L 3000,378 L 3000,420 Z"
       fill="#0e1720"/>
 
     <use href="#rock-proto" transform="translate(120, 370) scale(0.9)"/>
     <use href="#rock-proto" transform="translate(880, 364) scale(1.1)"/>
     <use href="#rock-proto" transform="translate(500, 376) scale(0.55)"/>
+    <use href="#rock-proto" transform="translate(-180, 368) scale(1.0)"/>
+    <use href="#rock-proto" transform="translate(1160, 370) scale(0.8)"/>
 
     <!-- the black smoker, and the worm colonies crowding round it -->
     <g id="vent-stack">
@@ -635,11 +648,15 @@
       <g class="worm w8"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
       <g class="worm w9"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
       <g class="worm w10"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w11"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
+      <g class="worm w12"><use class="plume" href="#worm-plume"/><use class="tube" href="#worm-tube"/></g>
     </g>
 
     <use href="#mussel-clump" transform="translate(250, 372) scale(1.1)"/>
     <use href="#mussel-clump" transform="translate(600, 380) scale(0.9)"/>
     <use href="#mussel-clump" transform="translate(830, 374) scale(1.2)"/>
+    <use href="#mussel-clump" transform="translate(-80, 376) scale(1.0)"/>
+    <use href="#mussel-clump" transform="translate(1100, 372) scale(1.1)"/>
 
     <!-- Spellworm herself, front and centre -->
     <g class="worm hero">
