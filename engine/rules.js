@@ -127,9 +127,11 @@
    */
   function inputLetter(game, raw) {
     const letter = String(raw || '').toUpperCase();
-    if (!/^[A-Z]$/.test(letter)) return { type: 'ignored' };
-
     const word = getCurrentWord(game);
+    // a hyphen is typeable only in words that have one (HI-HAT); elsewhere it's ignored
+    const typeable = /^[A-Z]$/.test(letter) || (letter === '-' && word.includes('-'));
+    if (!typeable) return { type: 'ignored' };
+
     const expected = word[game.letterIndex];
     if (letter !== expected) {
       return { type: 'incorrect', letter, expected };

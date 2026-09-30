@@ -72,6 +72,18 @@ test('non-letter input is ignored', () => {
   assert.equal(getLetterIndex(game), 0);
 });
 
+test('a hyphen is typed like a letter in a word that has one, and ignored otherwise', () => {
+  const game = createGame({ words: ['HI-HAT', 'BAT'], rng: identityRng, celebrations: CYCLE_OF_THREE });
+  assert.equal(getCurrentWord(game), 'HI-HAT');
+  assert.equal(inputLetter(game, '-').type, 'incorrect');
+  const events = typeWord(game, 'HI-HAT');
+  assert.deepEqual(events[2], { type: 'correct', letter: '-', index: 2 });
+  assert.equal(events[5].type, 'word-complete');
+
+  assert.equal(getCurrentWord(game), 'BAT');
+  assert.deepEqual(inputLetter(game, '-'), { type: 'ignored' });
+});
+
 test('a long word is spelled letter by letter like any other', () => {
   const game = createGame({ words: ['TYRANNOSAURUS'], rng: identityRng, celebrations: CYCLE_OF_THREE });
   const events = typeWord(game, 'TYRANNOSAURUS');

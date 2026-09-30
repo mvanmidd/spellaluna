@@ -95,7 +95,7 @@
   function handleCorrect(ev) {
     const tileEl = el.tiles.children[ev.index];
     tileEl.classList.add('done');
-    fx.sayWord(ev.letter);
+    fx.sayWord(ev.letter === '-' ? 'hyphen' : ev.letter);
     if (theme.onCorrect) theme.onCorrect({ tileEl, index: ev.index, letter: ev.letter });
   }
 
@@ -186,7 +186,7 @@
 
   function confirmAddWord() {
     const word = el.addWordInput.value.trim().toUpperCase();
-    if (!word || !/^[A-Z]+$/.test(word)) {
+    if (!word || !/^[A-Z]+(-[A-Z]+)*$/.test(word)) {
       el.addWordError.textContent = 'Only letters please!';
       el.addWordError.hidden = false;
       return;

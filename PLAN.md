@@ -186,3 +186,56 @@ Ten neighbours crowd round a black smoker; she stands in the foreground.
 - [x] `snap.mjs spellaluna 3` and `spellasaurus 4` still green
 - [x] `BUNDLE=1 snap.mjs spellworms 5` — the single-file build plays too
 - [x] Launcher card added
+
+## Iteration 5: Spellodrum
+
+Greg, a drummer with a huge curly mop, on a small stage under coloured lights. The kit is
+minimal on purpose: kick, snare, hi-hat and ride.
+
+### The world
+
+- **One rig, cloned.** `#greg-rig` in `<defs>` is the whole drummer-plus-kit assembly, and
+  theme.js copies its children into every `<g class="greg">` (main scene, start screen,
+  seven celebrations). One drawing and one block of CSS, so a fix to his arm is a fix
+  everywhere. Nothing inside the rig has an id; the main scene finds its anchors by class.
+- **Torso and arms are two `<g class="upper">` groups** with the kit drawn between them,
+  so the drums sit in front of his shirt and the sticks stay in front of the drums. Both
+  groups get the same animation and move as one body.
+- **The flop** is a front view, so "forward" is faked: the torso squashes and leans toward
+  the drum, the head drops and grows (toward the camera), and the hair lags, flattening
+  on the wind-up and flying up as the head drops. Three animations on three nested groups.
+- **Correct letter** → a hit, alternating left hand (snare) and right hand (ride), with a
+  kick under every one and a tom that climbs through the word. A marker (drumsticks, a
+  cymbal or a snare) flies from the tile to the snare and lands in the tray.
+- **Wrong letter** → he drops a stick. It spins off, bounces on the floor, and a new one
+  appears in his hand, with a wide-eyed "oops" face and a clatter.
+- **Eight celebrations at random, no finale**: plays fast, plays slow (a snail keeps up),
+  rock & roll finish (a roll, then both sticks up), drum solo, practising to a metronome,
+  on tour in the van, a sold-out show at The Sinclair, and cereal bouncing out of a bowl
+  on the kick drum into his mouth on every beat.
+- 50 words, including HI-HAT.
+
+### Engine change: hyphens
+
+HI-HAT needed the one engine change. `rules.inputLetter` accepts `-`, but only in a word
+that has one, so the minus key is still ignored in every other game. The engine speaks it
+as "hyphen", and the add-a-word modal allows hyphenated words. There's a test in
+`rules.test.cjs`, and `themes.test.cjs` allows hyphens inside a word.
+
+### Things learned
+
+- **Drummer arms: rotate the arm to raise it, then counter-rotate the wrist.** The "sticks
+  up" finish rotates each arm -110° at the shoulder and the wrist +125°, so the stick ends
+  up near vertical. Rotating only the wrist gave sticks pointing sideways.
+- **`snap.mjs` sometimes fails on the first run after switching themes** (`#tiles` is null
+  because the page is read before it finishes navigating). Rerunning passes. That's
+  timing in the harness, not the game.
+
+### Progress
+
+- [x] Rig, kit, hit and drop animations, eight scenes, each checked in screenshots
+- [x] `node --test test/` green (38); `snap.mjs spellodrum 8`, no console errors
+- [x] HI-HAT typed end to end through the add-a-word modal, and a stray `-` costs no progress
+- [x] `snap.mjs` spellaluna 3, spellasaurus 4 and spellworms 4 still green
+- [x] `BUNDLE=1 snap.mjs spellodrum 4`: the single-file build plays too
+- [x] Launcher card added

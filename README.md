@@ -1,11 +1,13 @@
 # Spelling games 🦇🥭 🦕🌿
 
-Two single-page spelling games for a small human (with a grown-up at the keyboard):
+Single-page spelling games for a small human (with a grown-up at the keyboard):
 
 - **Spellaluna** — Spellaluna the fruit bat and her bird friends Pip, Flitter and Flap.
 - **Spellasaurus** — Spellasaurus the brontosaurus, who eats star leaves off a tall tree.
+- **Spellworms** — Spellworm the giant tube worm, on a hydrothermal vent.
+- **Spellodrum** — Greg the drummer, who plays every letter as hard as he can.
 
-Both games share one engine; each supplies its own words, art, sounds and rewards.
+All the games share one engine; each supplies its own words, art, sounds and rewards.
 
 ## Play
 
@@ -81,5 +83,5 @@ node tools/scene.mjs spellasaurus goldenleaf 900,2400,3800   # one scene at set 
 CSS and theme inlined. Attach one to an email; the recipient saves it and opens it in a
 browser. Pass a theme name to build just one. `dist/` is git-ignored.
 
-See `ADD-GAME.md` to add a third game, and `PLAN.md` for the design plan and
+See `ADD-GAME.md` to add another game, and `PLAN.md` for the design plan and
 build progress.

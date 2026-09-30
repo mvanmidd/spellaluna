@@ -25,7 +25,7 @@ for (const name of themes) {
   test(`${name}: words are uppercase letters only, and not too long to spell`, () => {
     assert.ok(WORDS.length >= 10, `only ${WORDS.length} words`);
     for (const w of WORDS) {
-      assert.match(w, /^[A-Z]+$/, `${w} is not plain uppercase letters`);
+      assert.match(w, /^[A-Z]+(-[A-Z]+)*$/, `${w} is not uppercase letters (and hyphens)`);
       assert.ok(w.length >= 2 && w.length <= 16, `${w} is ${w.length} letters`);
     }
     assert.equal(new Set(WORDS).size, WORDS.length, 'duplicate words');

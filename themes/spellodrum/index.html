@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spellodrum</title>
+<link rel="stylesheet" href="../../engine/engine.css">
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+
+<!-- ======= shared art (referenced everywhere via <use>) =======
+     Greg is a rig of parts, each drawn with its pivot at the origin:
+       #greg-legs  — origin on the floor under the stool, hips at y = -100
+       #greg-body  — the shirt, origin at the hips
+       #greg-head  — neck + face, origin at the base of the neck
+       #greg-hair  — the mop, origin at the centre of his head
+       #greg-arm   — his LEFT arm (on the viewer's right), origin at the shoulder,
+                     hand at (4, 52); the right arm is the same art under scale(-1, 1)
+       #stick-proto — a drumstick, origin at the grip, pointing straight up
+     #greg-rig (below, in <defs>) is the whole drummer-plus-kit assembly; theme.js
+     copies its children into every <g class="greg"> on the page, so the main scene and
+     every celebration share one rig and one set of CSS (theme.css "the Greg rig"). -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+
+    <linearGradient id="wall-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0"   stop-color="#1b0f2e"/>
+      <stop offset="0.6" stop-color="#2c1440"/>
+      <stop offset="1"   stop-color="#3b1a45"/>
+    </linearGradient>
+    <linearGradient id="beam-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="spot-grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff2c4" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#fff2c4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cymbal-grad" cx="42%" cy="40%" r="70%">
+      <stop offset="0"    stop-color="#fff0b0"/>
+      <stop offset="0.45" stop-color="#e2b34a"/>
+      <stop offset="1"    stop-color="#a8762a"/>
+    </radialGradient>
+
+    <!-- ---------- Greg ---------- -->
+
+    <!-- legs in jeans, mostly hidden behind the kick drum -->
+    <g id="greg-legs">
+      <path d="M -30,-104 C -52,-100 -64,-88 -68,-72 L -64,-4 L -48,-4 L -50,-68 C -44,-80 -30,-84 -18,-86 Z"
+        fill="#34466e"/>
+      <path d="M 30,-104 C 52,-100 64,-88 68,-72 L 64,-4 L 48,-4 L 50,-68 C 44,-80 30,-84 18,-86 Z"
+        fill="#34466e"/>
+      <path d="M -70,-8 Q -72,4 -56,4 L -40,4 Q -40,-8 -50,-10 Z" fill="#2a2320"/>
+      <path d="M 70,-8 Q 72,4 56,4 L 40,4 Q 40,-8 50,-10 Z" fill="#2a2320"/>
+    </g>
+
+    <!-- the teal t-shirt: origin at the hips, shoulders at y = -86 -->
+    <g id="greg-body">
+      <path d="M -36,6 C -40,-24 -46,-56 -46,-78 Q -30,-94 0,-94 Q 30,-94 46,-78
+               C 46,-56 40,-24 36,6 Z" fill="var(--shirt, #1f8f86)"/>
+      <path d="M 14,-92 Q 30,-92 46,-78 C 46,-56 40,-24 36,6 L 20,6 C 26,-30 26,-60 14,-92 Z"
+        fill="var(--shirt-shade, #16706a)"/>
+      <!-- collar -->
+      <path d="M -13,-94 Q 0,-80 13,-94" stroke="var(--shirt-shade, #16706a)" stroke-width="4"
+        fill="none" stroke-linecap="round"/>
+      <path d="M -11,-94 Q 0,-84 11,-94 Z" fill="#e9b594"/>
+    </g>
+
+    <!-- neck and face: origin at the base of the neck, head centre at (0, -44) -->
+    <g id="greg-head">
+      <rect x="-9" y="-22" width="18" height="24" rx="5" fill="#e0a887"/>
+      <!-- ears -->
+      <ellipse cx="-24" cy="-40" rx="5" ry="8" fill="#e9b594"/>
+      <ellipse cx="24"  cy="-40" rx="5" ry="8" fill="#e9b594"/>
+      <!-- a long face with a narrow chin -->
+      <path d="M -23,-58 C -24,-30 -18,-12 0,-10 C 18,-12 24,-30 23,-58 C 20,-76 -20,-76 -23,-58 Z"
+        fill="#f0c5a4"/>
+      <!-- stubble -->
+      <path d="M -17,-26 C -14,-14 -6,-11 0,-11 C 6,-11 14,-14 17,-26 C 10,-18 -10,-18 -17,-26 Z"
+        fill="#c79a7c" opacity="0.55"/>
+      <!-- nose -->
+      <path d="M 0,-46 L -4,-32 Q 0,-30 4,-32" stroke="#c98c6c" stroke-width="2"
+        fill="none" stroke-linecap="round"/>
+      <ellipse cx="-13" cy="-33" rx="4.5" ry="2.6" fill="#ee9f8a" opacity="0.45"/>
+      <ellipse cx="13"  cy="-33" rx="4.5" ry="2.6" fill="#ee9f8a" opacity="0.45"/>
+
+      <!-- eyes: concentrating, looking down at the drums (the photo face) -->
+      <g style="display: var(--eyes-focus, block)">
+        <path d="M -16,-51 Q -10,-55 -4,-52" stroke="#5a3218" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M 4,-52 Q 10,-55 16,-51"   stroke="#5a3218" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M -15,-44 Q -10,-41 -5,-44 Q -10,-46.5 -15,-44 Z" fill="#fff"/>
+        <path d="M 5,-44 Q 10,-41 15,-44 Q 10,-46.5 5,-44 Z" fill="#fff"/>
+        <circle cx="-10" cy="-43.4" r="2" fill="#2b1a10"/>
+        <circle cx="10"  cy="-43.4" r="2" fill="#2b1a10"/>
+        <path d="M -15.5,-45 Q -10,-48 -4.5,-45" stroke="#7a4a30" stroke-width="1.6" fill="none"/>
+        <path d="M 4.5,-45 Q 10,-48 15.5,-45"   stroke="#7a4a30" stroke-width="1.6" fill="none"/>
+      </g>
+      <!-- eyes: happy -->
+      <g style="display: var(--eyes-happy, none)" stroke="#2b1a10" stroke-width="2.6"
+         fill="none" stroke-linecap="round">
+        <path d="M -15,-43 Q -10,-49 -5,-43"/>
+        <path d="M 5,-43 Q 10,-49 15,-43"/>
+      </g>
+      <!-- eyes: oops (wide) -->
+      <g style="display: var(--eyes-oops, none)">
+        <path d="M -16,-55 Q -10,-60 -4,-56" stroke="#5a3218" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path d="M 4,-56 Q 10,-60 16,-55"   stroke="#5a3218" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <circle cx="-10" cy="-44" r="5" fill="#fff"/>
+        <circle cx="10"  cy="-44" r="5" fill="#fff"/>
+        <circle cx="-10" cy="-44" r="2.4" fill="#2b1a10"/>
+        <circle cx="10"  cy="-44" r="2.4" fill="#2b1a10"/>
+      </g>
+
+      <!-- mouths -->
+      <path style="display: var(--mouth-focus, block)" d="M -7,-22 Q 0,-24 7,-21"
+        stroke="#9a5646" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <g style="display: var(--mouth-grin, none)">
+        <path d="M -10,-25 Q 0,-12 10,-25 Z" fill="#6b2a22"/>
+        <path d="M -8,-24.5 L 8,-24.5 L 7,-22 L -7,-22 Z" fill="#fff"/>
+      </g>
+      <ellipse style="display: var(--mouth-oops, none)" cx="0" cy="-21" rx="4" ry="5" fill="#6b2a22"/>
+      <g style="display: var(--mouth-munch, none)">
+        <ellipse cx="0" cy="-21" rx="7" ry="5.5" fill="#6b2a22"/>
+        <ellipse cx="0" cy="-18.6" rx="4" ry="2.2" fill="#e88c86"/>
+      </g>
+    </g>
+
+    <!-- the mop: origin at the centre of his head. Curls drawn dark to light, so the
+         lumps catch the stage lights on top. -->
+    <g id="greg-hair">
+      <!-- the outline of the mop: wide, lumpy, a few stray curls -->
+      <g fill="var(--hair-dark, #4a2612)">
+        <circle cx="-40" cy="-14" r="21"/><circle cx="40" cy="-14" r="21"/>
+        <circle cx="-50" cy="6"   r="15"/><circle cx="51" cy="7"   r="15"/>
+        <circle cx="-56" cy="-32" r="13"/><circle cx="57" cy="-30" r="13"/>
+        <circle cx="-30" cy="-56" r="17"/><circle cx="30" cy="-57" r="16"/>
+        <circle cx="0"   cy="-64" r="18"/>
+        <circle cx="-58" cy="18"  r="10"/><circle cx="60" cy="20"  r="10"/>
+        <circle cx="-64" cy="-12" r="10"/><circle cx="65" cy="-10" r="9"/>
+        <circle cx="-16" cy="-72" r="10"/><circle cx="18" cy="-73" r="9"/>
+      </g>
+      <g fill="var(--hair, #6e3b1e)">
+        <circle cx="-28" cy="-36" r="22"/><circle cx="28" cy="-36" r="22"/>
+        <circle cx="-9"  cy="-48" r="24"/><circle cx="11" cy="-48" r="24"/>
+        <circle cx="-44" cy="-12" r="15"/><circle cx="44" cy="-12" r="15"/>
+        <circle cx="-47" cy="6"   r="11"/><circle cx="48" cy="7"   r="11"/>
+        <circle cx="-50" cy="-34" r="10"/><circle cx="52" cy="-32" r="10"/>
+        <circle cx="-28" cy="-58" r="11"/><circle cx="28" cy="-59" r="10"/>
+        <circle cx="0" cy="-64" r="12"/>
+        <!-- the fringe, down over his forehead -->
+        <circle cx="-17" cy="-24" r="11"/><circle cx="0" cy="-26" r="12"/>
+        <circle cx="17"  cy="-24" r="11"/>
+        <circle cx="-28" cy="-18" r="9"/> <circle cx="28" cy="-18" r="9"/>
+      </g>
+      <!-- curls catching the stage lights -->
+      <g stroke="var(--hair-lite, #a8622e)" stroke-width="2.6" fill="none" stroke-linecap="round">
+        <path d="M -36,-40 a 6,6 0 1 1 6,6"/>
+        <path d="M -12,-56 a 6,6 0 1 1 6,6"/>
+        <path d="M 12,-52 a 6,6 0 1 0 -6,6"/>
+        <path d="M 34,-40 a 6,6 0 1 0 -6,6"/>
+        <path d="M -48,-16 a 5,5 0 1 1 5,5"/>
+        <path d="M 48,-14 a 5,5 0 1 0 -5,5"/>
+        <path d="M -2,-38 a 5,5 0 1 1 5,5"/>
+        <path d="M -24,-66 a 5,5 0 1 1 5,5"/>
+        <path d="M 26,-68 a 5,5 0 1 0 -5,5"/>
+        <path d="M -50,4 a 4,4 0 1 1 4,4"/>
+        <path d="M 52,6 a 4,4 0 1 0 -4,4"/>
+        <path d="M -54,-38 a 4,4 0 1 1 4,4"/>
+        <path d="M 56,-36 a 4,4 0 1 0 -4,4"/>
+        <path d="M -22,-28 q 4,-6 10,-2"/>
+        <path d="M 10,-30 q 5,-5 10,0"/>
+        <path d="M -4,-72 a 4,4 0 1 1 4,4"/>
+      </g>
+      <g stroke="var(--hair-dark, #4a2612)" stroke-width="2.2" fill="none" stroke-linecap="round">
+        <path d="M -30,-14 q -2,6 2,10"/>
+        <path d="M 30,-14 q 2,6 -2,10"/>
+        <path d="M -8,-16 q 2,4 0,7"/>
+        <path d="M 9,-16 q -2,4 0,7"/>
+      </g>
+      <!-- strays -->
+      <g stroke="var(--hair, #6e3b1e)" stroke-width="3" fill="none" stroke-linecap="round">
+        <path d="M -66,-40 q -10,-6 -6,-16"/>
+        <path d="M 68,-38 q 10,-5 6,-16"/>
+        <path d="M -28,-74 q -4,-10 4,-14"/>
+        <path d="M 24,-78 q 2,-10 10,-10"/>
+        <path d="M -66,22 q -9,2 -10,10"/>
+        <path d="M 68,24 q 9,3 8,12"/>
+        <path d="M -74,-6 q -8,-2 -10,6"/>
+        <path d="M 74,-4 q 8,-2 10,6"/>
+      </g>
+    </g>
+
+    <!-- his left arm: shoulder at the origin, hand at (4, 52) -->
+    <g id="greg-arm">
+      <path d="M 2,4 C 16,18 26,30 24,40 C 22,50 12,56 4,54" stroke="#e0a887" stroke-width="15"
+        fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 2,4 C 16,18 26,30 24,40" stroke="#f0c5a4" stroke-width="10"
+        fill="none" stroke-linecap="round"/>
+      <path d="M -8,-6 Q 10,-10 20,8 L 8,22 Q -2,14 -8,-6 Z" fill="var(--shirt, #1f8f86)"/>
+      <circle cx="4" cy="52" r="9" fill="#f0c5a4"/>
+    </g>
+
+    <!-- a drumstick, grip at the origin, pointing straight up -->
+    <g id="stick-proto">
+      <path d="M -2.6,10 L -1.8,-68 L 1.8,-68 L 2.6,10 Z" fill="#e8c88a"/>
+      <path d="M 0.6,10 L 1.2,-68 L 1.8,-68 L 2.6,10 Z" fill="#c9a263"/>
+      <ellipse cx="0" cy="-71" rx="2.8" ry="4" fill="#f3dca8"/>
+    </g>
+
+    <!-- ---------- the kit: kick, snare, hi-hat, ride ---------- -->
+
+    <!-- kick: origin on the floor, head centre at (0, -58) -->
+    <g id="kick-proto">
+      <path d="M -40,-6 L -52,4 M 40,-6 L 52,4" stroke="#b9b9c4" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="0" cy="-58" r="58" fill="#8c1f2c"/>
+      <circle cx="0" cy="-58" r="52" fill="#f4ecd8"/>
+      <circle cx="0" cy="-58" r="52" fill="none" stroke="#d9cfb8" stroke-width="3"/>
+      <g fill="#c9c9d2">
+        <circle cx="0" cy="-113" r="3.5"/><circle cx="0" cy="-3" r="3.5"/>
+        <circle cx="-55" cy="-58" r="3.5"/><circle cx="55" cy="-58" r="3.5"/>
+        <circle cx="-39" cy="-97" r="3.5"/><circle cx="39" cy="-97" r="3.5"/>
+        <circle cx="-39" cy="-19" r="3.5"/><circle cx="39" cy="-19" r="3.5"/>
+      </g>
+      <text x="0" y="-48" text-anchor="middle" font-size="28" font-weight="bold"
+        font-family="Chalkboard SE, Comic Sans MS, sans-serif" fill="#8c1f2c">GREG</text>
+      <path d="M -30,-80 Q 0,-94 30,-80" stroke="#8c1f2c" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M -30,-36 Q 0,-24 30,-36" stroke="#8c1f2c" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </g>
+
+    <!-- snare: origin at the centre of the top head; the stand reaches the floor at y = +124 -->
+    <g id="snare-proto">
+      <path d="M 0,22 L 0,104 M 0,104 L -20,124 M 0,104 L 20,124 M 0,104 L 0,124"
+        stroke="#b9b9c4" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+      <path d="M -34,0 L -34,20 Q 0,30 34,20 L 34,0 Z" fill="#c8c8d4"/>
+      <path d="M -34,6 L -34,14 Q 0,24 34,14 L 34,6 Q 0,16 -34,6 Z" fill="#9a2233"/>
+      <g stroke="#8d8d9a" stroke-width="2">
+        <path d="M -24,4 L -24,24 M -8,7 L -8,27 M 8,7 L 8,27 M 24,4 L 24,24"/>
+      </g>
+      <ellipse cx="0" cy="0" rx="34" ry="8" fill="#f4f0e4"/>
+      <ellipse cx="0" cy="0" rx="34" ry="8" fill="none" stroke="#b9b9c4" stroke-width="2.4"/>
+    </g>
+
+    <!-- hi-hat: origin at the centre of the top cymbal; floor at y = +158 -->
+    <g id="hihat-proto">
+      <path d="M 0,0 L 0,140 M 0,140 L -18,158 M 0,140 L 18,158 M 0,140 L 0,158"
+        stroke="#b9b9c4" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+      <path d="M -34,6 Q 0,-2 34,6 Q 0,16 -34,6 Z" fill="url(#cymbal-grad)"/>
+      <path d="M -34,0 Q 0,-10 34,0 Q 0,6 -34,0 Z" fill="url(#cymbal-grad)"/>
+      <ellipse cx="0" cy="-3" rx="5" ry="2" fill="#a8762a"/>
+    </g>
+
+    <!-- ride: origin at the bell; floor at y = +146. Tilted toward the player. -->
+    <g id="ride-proto">
+      <path d="M 0,0 L 0,120 M 0,120 L -20,146 M 0,120 L 20,146 M 0,120 L 0,146"
+        stroke="#b9b9c4" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+      <g transform="rotate(-8)">
+        <ellipse cx="0" cy="0" rx="50" ry="11" fill="url(#cymbal-grad)"/>
+        <ellipse cx="0" cy="0" rx="50" ry="11" fill="none" stroke="#a8762a" stroke-width="1.4"/>
+        <ellipse cx="0" cy="-2" rx="10" ry="4.5" fill="#e2b34a"/>
+        <path d="M -36,-2 Q 0,-8 36,-2" stroke="#fff5cc" stroke-width="1.6" fill="none" opacity="0.7"/>
+      </g>
+    </g>
+
+    <!-- the whole drummer and kit. theme.js copies these children into each
+         <g class="greg"> — so no ids in here. -->
+    <g id="greg-rig">
+      <use class="legs" href="#greg-legs"/>
+      <g class="upper torso">
+        <use href="#greg-body"/>
+        <g class="head">
+          <use class="face" href="#greg-head"/>
+          <use class="hair" href="#greg-hair"/>
+          <circle class="mouth-anchor" cx="0" cy="-22" r="2" fill="none" pointer-events="none"/>
+        </g>
+      </g>
+      <g class="kit">
+        <use class="ride" href="#ride-proto"/>
+        <use class="hat" href="#hihat-proto"/>
+        <use class="snare" href="#snare-proto"/>
+        <use class="kick" href="#kick-proto"/>
+        <circle class="snare-anchor" cx="80" cy="-124" r="2" fill="none" pointer-events="none"/>
+      </g>
+      <g class="upper arms">
+        <g class="arm arm-r"><use href="#greg-arm"/><g class="wrist"><use class="stick" href="#stick-proto"/></g></g>
+        <g class="arm arm-l"><use href="#greg-arm"/><g class="wrist"><use class="stick" href="#stick-proto"/></g></g>
+      </g>
+      <!-- the stick he drops on a wrong letter (one per hand) -->
+      <use class="drop-stick drop-l" href="#stick-proto"/>
+      <g class="drop-mirror"><use class="drop-stick drop-r" href="#stick-proto"/></g>
+    </g>
+
+    <!-- ---------- correct-letter markers: sticks, cymbals, drums ---------- -->
+
+    <g id="mk-sticks">
+      <use href="#stick-proto" transform="translate(-14, 22) rotate(26) scale(0.62)"/>
+      <use href="#stick-proto" transform="translate(14, 22) rotate(-26) scale(0.62)"/>
+    </g>
+    <g id="mk-cymbal">
+      <path d="M 0,-4 L 0,20" stroke="#b9b9c4" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="0" cy="-2" rx="26" ry="9" fill="url(#cymbal-grad)"/>
+      <ellipse cx="0" cy="-2" rx="26" ry="9" fill="none" stroke="#a8762a" stroke-width="1.4"/>
+      <ellipse cx="0" cy="-4" rx="6" ry="3" fill="#e2b34a"/>
+      <path d="M -17,-4 Q 0,-9 17,-4" stroke="#fff5cc" stroke-width="1.6" fill="none"/>
+    </g>
+    <g id="mk-drum">
+      <path d="M -20,-10 L -20,12 Q 0,22 20,12 L 20,-10 Z" fill="#c8303f"/>
+      <path d="M -20,-2 L -20,4 Q 0,14 20,4 L 20,-2 Q 0,8 -20,-2 Z" fill="#f4f0e4"/>
+      <g stroke="#8d8d9a" stroke-width="2"><path d="M -12,-6 L -12,15 M 0,-3 L 0,18 M 12,-6 L 12,15"/></g>
+      <ellipse cx="0" cy="-10" rx="20" ry="6" fill="#f4f0e4"/>
+      <ellipse cx="0" cy="-10" rx="20" ry="6" fill="none" stroke="#b9b9c4" stroke-width="2"/>
+    </g>
+
+    <!-- ---------- scenery and props ---------- -->
+
+    <!-- a guitar amp: origin at the floor, 120 tall -->
+    <g id="amp-proto">
+      <rect x="-60" y="-124" width="120" height="124" rx="8" fill="#1d1a20"/>
+      <rect x="-52" y="-94" width="104" height="86" rx="4" fill="#2c2833"/>
+      <g stroke="#3c3745" stroke-width="2">
+        <path d="M -52,-80 L 52,-80 M -52,-66 L 52,-66 M -52,-52 L 52,-52 M -52,-38 L 52,-38 M -52,-24 L 52,-24"/>
+      </g>
+      <rect x="-52" y="-118" width="104" height="18" rx="3" fill="#c9a24a"/>
+      <g fill="#1d1a20"><circle cx="-36" cy="-109" r="4"/><circle cx="-22" cy="-109" r="4"/>
+        <circle cx="-8" cy="-109" r="4"/><circle cx="6" cy="-109" r="4"/></g>
+      <circle cx="38" cy="-109" r="3" fill="#ff5a5a"/>
+    </g>
+
+    <!-- a mic stand, origin at the floor -->
+    <g id="mic-proto" stroke="#8d8d9a" stroke-width="3.4" stroke-linecap="round" fill="none">
+      <path d="M 0,0 L 0,-150 L -46,-178 M 0,0 L -18,6 M 0,0 L 18,6"/>
+      <rect x="-60" y="-190" width="16" height="10" rx="5" fill="#2c2833" stroke="none" transform="rotate(-30 -52 -185)"/>
+    </g>
+
+    <!-- stage light can -->
+    <g id="light-proto">
+      <rect x="-14" y="-10" width="28" height="30" rx="5" fill="#26222c"/>
+      <ellipse cx="0" cy="20" rx="12" ry="4" fill="var(--lamp, #ffe29a)"/>
+    </g>
+
+    <!-- a music note -->
+    <g id="note-proto" fill="var(--note, #ffd166)">
+      <ellipse cx="-6" cy="12" rx="9" ry="7" transform="rotate(-20 -6 12)"/>
+      <path d="M 1,10 L 1,-22 Q 14,-16 16,-4 Q 10,-12 5,-12 L 5,10 Z"/>
+    </g>
+
+    <path id="star-proto" fill="#ffd166"
+      d="M 0,-20 L 5.9,-8.1 L 19,-6.2 L 9.5,3.1 L 11.8,16.2 L 0,10 L -11.8,16.2 L -9.5,3.1 L -19,-6.2 L -5.9,-8.1 Z"/>
+    <path id="heart-proto" fill="#ff6b81"
+      d="M 0,14 C -22,0 -20,-18 -8,-18 C -3,-18 0,-14 0,-10 C 0,-14 3,-18 8,-18 C 20,-18 22,0 0,14 Z"/>
+    <path id="bolt-proto" fill="#ffe14d" d="M 6,-30 L -12,4 L 0,4 L -6,30 L 14,-6 L 2,-6 Z"/>
+    <path id="drop-proto" fill="#9fdcff" d="M 0,-10 C 5,-2 7,2 7,5 A 7,7 0 1 1 -7,5 C -7,2 -5,-2 0,-10 Z"/>
+    <g id="spark-proto" fill="#fff3bf">
+      <path d="M 0,-16 L 3.5,-3.5 L 16,0 L 3.5,3.5 L 0,16 L -3.5,3.5 L -16,0 L -3.5,-3.5 Z"/>
+    </g>
+
+    <!-- a snail, for the slow song -->
+    <g id="snail-proto">
+      <path d="M -40,0 Q -44,-10 -30,-12 L 30,-12 Q 38,-12 40,-4 L 40,0 Z" fill="#d8c27a"/>
+      <path d="M 30,-12 Q 34,-30 38,-34 M 36,-12 Q 44,-28 48,-30" stroke="#d8c27a" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+      <circle cx="38" cy="-35" r="3.4" fill="#2b1a10"/><circle cx="48" cy="-31" r="3.4" fill="#2b1a10"/>
+      <circle cx="0" cy="-30" r="24" fill="#b0643a"/>
+      <path d="M 0,-30 m -14,0 a 14,14 0 1 1 14,14 a 9,9 0 1 1 -9,-9 a 4,4 0 1 1 4,4"
+        stroke="#7a3f22" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+    </g>
+
+    <!-- a metronome: origin at the base, pendulum pivot at (0, -10) -->
+    <g id="metronome-proto">
+      <path d="M -30,0 L -16,-90 L 16,-90 L 30,0 Z" fill="#6b3f22"/>
+      <path d="M -22,-8 L -12,-78 L 12,-78 L 22,-8 Z" fill="#f1e2c0"/>
+      <g stroke="#6b3f22" stroke-width="1.4"><path d="M -8,-66 L 8,-66 M -9,-54 L 9,-54 M -11,-42 L 11,-42 M -13,-30 L 13,-30"/></g>
+      <rect x="-30" y="-8" width="60" height="10" rx="3" fill="#4a2a16"/>
+    </g>
+    <g id="pendulum-proto">
+      <path d="M 0,0 L 0,-72" stroke="#3a2a1e" stroke-width="3" stroke-linecap="round"/>
+      <rect x="-6" y="-58" width="12" height="10" rx="2" fill="#c9a24a"/>
+    </g>
+
+    <!-- the tour van: origin at the middle of the ground under it, facing right -->
+    <g id="van-proto">
+      <path d="M -150,-24 L -150,-118 Q -150,-128 -140,-128 L 70,-128 Q 96,-128 110,-104 L 140,-62
+               Q 150,-50 150,-36 L 150,-24 Z" fill="#e8e2d0"/>
+      <path d="M -150,-60 L 150,-60 L 150,-44 L -150,-44 Z" fill="#d9483b"/>
+      <rect x="-134" y="-116" width="54" height="44" rx="6" fill="#23303f"/>
+      <rect x="-68"  y="-116" width="54" height="44" rx="6" fill="#23303f"/>
+      <rect x="-2"   y="-116" width="54" height="44" rx="6" fill="#23303f"/>
+      <path d="M 66,-116 L 96,-116 Q 104,-114 110,-104 L 124,-72 L 66,-72 Z" fill="#23303f"/>
+      <text x="-40" y="-47" text-anchor="middle" font-size="15" font-weight="bold" letter-spacing="3"
+        font-family="Chalkboard SE, Comic Sans MS, sans-serif" fill="#fff">WORLD TOUR</text>
+      <rect x="138" y="-44" width="14" height="10" rx="2" fill="#ffe29a"/>
+      <g>
+        <circle cx="-96" cy="-24" r="24" fill="#1d1a20"/><circle cx="-96" cy="-24" r="10" fill="#8d8d9a"/>
+        <circle cx="96"  cy="-24" r="24" fill="#1d1a20"/><circle cx="96"  cy="-24" r="10" fill="#8d8d9a"/>
+      </g>
+    </g>
+    <!-- a bandmate's head in the van window -->
+    <g id="bandmate-proto">
+      <ellipse cx="0" cy="0" rx="14" ry="17" fill="#e9b594"/>
+      <path d="M -15,-2 Q -16,-22 0,-20 Q 16,-22 15,-2 Q 8,-14 0,-12 Q -8,-14 -15,-2 Z" fill="var(--bm-hair, #222)"/>
+      <circle cx="-5" cy="2" r="1.8" fill="#2b1a10"/><circle cx="5" cy="2" r="1.8" fill="#2b1a10"/>
+      <path d="M -5,9 Q 0,13 5,9" stroke="#9a5646" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    </g>
+    <!-- a cheering fan: origin at the bottom of the shoulders -->
+    <g id="fan-proto" fill="var(--fan, #140b20)">
+      <circle cx="0" cy="-44" r="16"/>
+      <path d="M -26,0 Q -26,-26 0,-28 Q 26,-26 26,0 Z"/>
+    </g>
+    <path id="fan-arm" d="M 0,0 L 0,-46" stroke="var(--fan, #140b20)" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- a cereal O and the bowl it bounces out of -->
+    <g id="cereal-o"><circle r="6" fill="none" stroke="#e8b04a" stroke-width="4.2"/></g>
+    <g id="bowl-proto">
+      <g fill="#e8b04a" stroke="#c8903a" stroke-width="1.2">
+        <circle cx="-22" cy="-8" r="5.5"/><circle cx="-10" cy="-11" r="5.5"/><circle cx="2" cy="-12" r="5.5"/>
+        <circle cx="14" cy="-10" r="5.5"/><circle cx="24" cy="-7" r="5"/><circle cx="-4" cy="-5" r="5"/>
+      </g>
+      <path d="M -36,-6 Q -34,20 0,22 Q 34,20 36,-6 Z" fill="#4f8fd1"/>
+      <path d="M -36,-6 Q 0,2 36,-6" stroke="#fff" stroke-width="2.4" fill="none"/>
+      <path d="M -24,6 Q 0,14 24,6" stroke="#8cc0f0" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M 26,-8 L 48,-30" stroke="#c9c9d2" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <g id="cereal-box">
+      <rect x="-34" y="-116" width="68" height="116" rx="4" fill="#ffd166"/>
+      <rect x="-34" y="-116" width="68" height="22" fill="#e8913a"/>
+      <text x="0" y="-100" text-anchor="middle" font-size="14" font-weight="bold"
+        font-family="Chalkboard SE, Comic Sans MS, sans-serif" fill="#fff">CEREAL</text>
+      <circle cx="0" cy="-54" r="20" fill="#4f8fd1"/>
+      <g fill="none" stroke="#e8b04a" stroke-width="4">
+        <circle cx="-7" cy="-58" r="6"/><circle cx="8" cy="-54" r="6"/><circle cx="-1" cy="-45" r="6"/>
+      </g>
+      <text x="0" y="-12" text-anchor="middle" font-size="11" font-weight="bold"
+        font-family="Chalkboard SE, Comic Sans MS, sans-serif" fill="#8c1f2c">EXTRA BIG</text>
+    </g>
+  </defs>
+</svg>
+
+<div id="app">
+
+  <!-- ======= main scene: Greg on stage ======= -->
+  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <rect x="-20" y="-40" width="1040" height="460" fill="url(#wall-grad)"/>
+
+    <!-- the lighting rig, and the coloured beams it throws -->
+    <path d="M -20,64 L 1020,64" stroke="#3a3144" stroke-width="6"/>
+    <g class="beams">
+      <path class="beam bm1" d="M 200,80 L 110,380 L 300,380 Z" style="--c:#ff4fa3"/>
+      <path class="beam bm2" d="M 400,80 L 340,380 L 520,380 Z" style="--c:#4fd1ff"/>
+      <path class="beam bm3" d="M 600,80 L 490,380 L 680,380 Z" style="--c:#ffd166"/>
+      <path class="beam bm4" d="M 800,80 L 700,380 L 900,380 Z" style="--c:#9b7bff"/>
+    </g>
+    <use href="#light-proto" transform="translate(200, 66)" style="--lamp:#ff4fa3"/>
+    <use href="#light-proto" transform="translate(400, 66)" style="--lamp:#4fd1ff"/>
+    <use href="#light-proto" transform="translate(600, 66)" style="--lamp:#ffd166"/>
+    <use href="#light-proto" transform="translate(800, 66)" style="--lamp:#9b7bff"/>
+
+    <!-- stage floor and the drum rug -->
+    <path d="M -20,400 L -20,356 L 1020,356 L 1020,400 Z" fill="#3a2418"/>
+    <g stroke="#2a1a10" stroke-width="2"><path d="M -20,370 L 1020,370 M -20,386 L 1020,386"/></g>
+    <ellipse cx="500" cy="374" rx="190" ry="20" fill="#6b2a3a"/>
+    <ellipse cx="500" cy="374" rx="170" ry="14" fill="none" stroke="#c9a24a" stroke-width="2.4" stroke-dasharray="8 6"/>
+
+    <use href="#amp-proto" transform="translate(150, 362) scale(1.1)"/>
+    <use href="#amp-proto" transform="translate(150, 226) scale(0.9, 0.5)"/>
+    <use href="#amp-proto" transform="translate(860, 362) scale(1.1)"/>
+    <use href="#mic-proto" transform="translate(280, 362)"/>
+    <use href="#mic-proto" transform="translate(740, 362) scale(-1, 1)"/>
+
+    <!-- Greg, front and centre -->
+    <g class="greg hero" id="greg"></g>
+  </svg>
+
+  <!-- ======= word tiles ======= -->
+  <div id="word-area">
+    <div id="tiles"></div>
+    <div id="hint"></div>
+  </div>
+
+  <div id="tray" aria-hidden="true"></div>
+</div>
+
+<!-- ======= start overlay ======= -->
+<div id="start-overlay" class="overlay">
+  <svg id="start-greg" viewBox="-230 -340 460 356" aria-hidden="true">
+    <ellipse cx="0" cy="-150" rx="220" ry="190" fill="url(#spot-grad)"/>
+    <ellipse cx="0" cy="4" rx="190" ry="14" fill="#6b2a3a"/>
+    <g class="greg drumming happy" style="--beat: 0.5s"></g>
+  </svg>
+  <h1>SPELLODRUM</h1>
+  <p class="subtitle">A spelling adventure with Greg the drummer,<br>
+    who plays every letter as hard as he possibly can</p>
+  <div class="press">Press any key to begin!</div>
+</div>
+
+<!-- ======= celebration overlay ======= -->
+<div id="celebration" class="overlay" hidden>
+  <div id="celebration-word"></div>
+  <div id="celebration-caption"></div>
+
+  <!-- Greg plays fast -->
+  <svg id="scene-fast" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#wall-grad)"/>
+    <g class="speed">
+      <path class="zip z1" d="M 60,200 L 220,200"/>
+      <path class="zip z2" d="M 40,280 L 190,280"/>
+      <path class="zip z3" d="M 70,360 L 210,360"/>
+      <path class="zip z4" d="M 590,210 L 740,210"/>
+      <path class="zip z5" d="M 610,300 L 760,300"/>
+      <path class="zip z6" d="M 580,380 L 730,380"/>
+    </g>
+    <path class="floor" d="M 0,500 L 0,462 L 800,462 L 800,500 Z"/>
+    <ellipse cx="400" cy="474" rx="200" ry="18" fill="#6b2a3a"/>
+    <g class="greg drumming happy" style="--beat: 0.16s"></g>
+    <use href="#drop-proto" class="cb-drop d1"/>
+    <use href="#drop-proto" class="cb-drop d2"/>
+    <use href="#drop-proto" class="cb-drop d3"/>
+    <use href="#drop-proto" class="cb-drop d4"/>
+    <use href="#note-proto" class="cb-note n1"/>
+    <use href="#note-proto" class="cb-note n2"/>
+    <use href="#note-proto" class="cb-note n3"/>
+    <use href="#note-proto" class="cb-note n4"/>
+    <use href="#note-proto" class="cb-note n5"/>
+    <use href="#note-proto" class="cb-note n6"/>
+  </svg>
+
+  <!-- Greg plays slow (and a snail keeps up) -->
+  <svg id="scene-slow" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#wall-grad)"/>
+    <ellipse cx="400" cy="300" rx="300" ry="200" fill="url(#spot-grad)" opacity="0.7"/>
+    <path class="floor" d="M 0,500 L 0,462 L 800,462 L 800,500 Z"/>
+    <ellipse cx="400" cy="474" rx="200" ry="18" fill="#6b2a3a"/>
+    <g class="greg drumming" style="--beat: 1.2s"></g>
+    <g class="snail-wrap"><use href="#snail-proto"/></g>
+    <use href="#note-proto" class="cb-note n1" style="--note:#9fdcff"/>
+    <use href="#note-proto" class="cb-note n3" style="--note:#9fdcff"/>
+    <use href="#note-proto" class="cb-note n5" style="--note:#9fdcff"/>
+  </svg>
+
+  <!-- rock & roll finish! -->
+  <svg id="scene-rocknroll" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#wall-grad)"/>
+    <ellipse class="flash" cx="400" cy="300" rx="380" ry="220" fill="url(#spot-grad)"/>
+    <path class="floor" d="M 0,500 L 0,462 L 800,462 L 800,500 Z"/>
+    <ellipse cx="400" cy="474" rx="200" ry="18" fill="#6b2a3a"/>
+    <g class="greg rolling"></g>
+    <use href="#bolt-proto" class="cb-bolt b1"/>
+    <use href="#bolt-proto" class="cb-bolt b2"/>
+    <use href="#spark-proto" class="cb-spark k1"/>
+    <use href="#spark-proto" class="cb-spark k2"/>
+    <use href="#spark-proto" class="cb-spark k3"/>
+    <use href="#spark-proto" class="cb-spark k4"/>
+    <use href="#spark-proto" class="cb-spark k5"/>
+    <use href="#spark-proto" class="cb-spark k6"/>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+    <use href="#star-proto" class="cb-star s4"/>
+    <use href="#star-proto" class="cb-star s5"/>
+    <use href="#star-proto" class="cb-star s6"/>
+  </svg>
+
+  <!-- Greg plays a drum solo -->
+  <svg id="scene-solo" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="#0c0714"/>
+    <path class="spot" d="M 350,100 L 450,100 L 620,480 L 180,480 Z" fill="url(#beam-grad)"/>
+    <path class="floor" d="M 0,500 L 0,462 L 800,462 L 800,500 Z"/>
+    <ellipse cx="400" cy="472" rx="220" ry="20" fill="#fff2c4" opacity="0.25"/>
+    <use href="#amp-proto" transform="translate(90, 462)" opacity="0.35"/>
+    <use href="#amp-proto" transform="translate(710, 462)" opacity="0.35"/>
+    <g class="greg drumming happy" style="--beat: 0.26s"></g>
+    <use href="#note-proto" class="cb-note n1"/>
+    <use href="#note-proto" class="cb-note n2" style="--note:#ff8fb8"/>
+    <use href="#note-proto" class="cb-note n3" style="--note:#9fdcff"/>
+    <use href="#note-proto" class="cb-note n4"/>
+    <use href="#note-proto" class="cb-note n5" style="--note:#ff8fb8"/>
+    <use href="#note-proto" class="cb-note n6" style="--note:#9fdcff"/>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+    <use href="#star-proto" class="cb-star s3"/>
+  </svg>
+
+  <!-- Greg practices hard -->
+  <svg id="scene-practice" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="#3d4f6b"/>
+    <rect x="0" y="100" width="800" height="400" fill="#2e3d56" opacity="0.5" class="wallpaper"/>
+    <!-- a poster, a window, a clock -->
+    <rect x="70" y="150" width="110" height="140" rx="4" fill="#e8e2d0"/>
+    <path d="M 125,178 L 142,212 L 180,216 L 150,240 L 160,278 L 125,256 L 90,278 L 100,240 L 70,216 L 108,212 Z"
+      fill="#d9483b" transform="translate(12 6) scale(0.8)"/>
+    <text x="125" y="282" text-anchor="middle" font-size="14" font-weight="bold"
+      font-family="Chalkboard SE, Comic Sans MS, sans-serif" fill="#23303f">ROCK!</text>
+    <g class="clock" transform="translate(650, 190)">
+      <circle r="38" fill="#f4f0e4" stroke="#23303f" stroke-width="5"/>
+      <path class="hand-h" d="M 0,0 L 0,-20" stroke="#23303f" stroke-width="5" stroke-linecap="round"/>
+      <path class="hand-m" d="M 0,0 L 0,-30" stroke="#d9483b" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <path class="floor practice-floor" d="M 0,500 L 0,462 L 800,462 L 800,500 Z"/>
+    <ellipse cx="400" cy="474" rx="200" ry="18" fill="#6b5a2a"/>
+    <g class="metro" transform="translate(640, 462)">
+      <use href="#metronome-proto"/>
+      <use class="pendulum" href="#pendulum-proto"/>
+    </g>
+    <g class="greg drumming" style="--beat: 0.5s"></g>
+    <use href="#drop-proto" class="cb-drop d1"/>
+    <use href="#drop-proto" class="cb-drop d2"/>
+    <use href="#drop-proto" class="cb-drop d3"/>
+    <use href="#drop-proto" class="cb-drop d4"/>
+  </svg>
+
+  <!-- Greg goes on tour with his band -->
+  <svg id="scene-tour" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="#7fc3e8"/>
+    <circle cx="660" cy="170" r="34" fill="#ffe29a"/>
+    <g class="hills">
+      <path d="M -200,420 Q -100,300 0,420 Q 100,320 200,420 Q 300,290 400,420 Q 500,330 600,420
+               Q 700,300 800,420 Q 900,320 1000,420 L 1000,500 L -200,500 Z" fill="#6fb36a"/>
+    </g>
+    <path d="M 0,500 L 0,440 L 800,440 L 800,500 Z" fill="#4a4a52"/>
+    <g class="road-dash"><path d="M -100,472 L 900,472" stroke="#ffe29a" stroke-width="6" stroke-dasharray="40 40"/></g>
+    <g class="van-wrap">
+      <use href="#van-proto"/>
+      <!-- the drums strapped on the roof -->
+      <use href="#mk-drum" transform="translate(-100, -140) scale(1.3)"/>
+      <use href="#mk-cymbal" transform="translate(-50, -142) scale(1.1)"/>
+      <use href="#mk-drum" transform="translate(0, -140) scale(1.1)"/>
+      <!-- the band in the windows, Greg's hair out the front one -->
+      <use href="#bandmate-proto" transform="translate(-107, -90)" style="--bm-hair:#1d1a20"/>
+      <use href="#bandmate-proto" transform="translate(-41, -90)" style="--bm-hair:#d9b36a"/>
+      <use href="#bandmate-proto" transform="translate(25, -90)" style="--bm-hair:#3a2418"/>
+      <g class="van-greg" transform="translate(86, -84) scale(0.46)">
+        <use class="hair" href="#greg-hair"/>
+        <use href="#greg-head" transform="translate(0, 44)" style="--eyes-focus:none; --eyes-happy:block; --mouth-focus:none; --mouth-grin:block"/>
+      </g>
+    </g>
+    <use href="#note-proto" class="cb-note n1"/>
+    <use href="#note-proto" class="cb-note n2"/>
+    <use href="#note-proto" class="cb-note n3"/>
+    <use href="#heart-proto" class="cb-heart h1"/>
+    <use href="#heart-proto" class="cb-heart h2"/>
+  </svg>
+
+  <!-- Greg plays a sold-out show at The Sinclair -->
+  <svg id="scene-sinclair" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="#120a1c"/>
+    <g class="marquee">
+      <rect x="250" y="104" width="300" height="58" rx="10" fill="#2a1a3a" stroke="#ffd166" stroke-width="4"/>
+      <g class="bulbs" fill="#ffe29a">
+        <circle cx="270" cy="114" r="3.4"/><circle cx="302" cy="114" r="3.4"/><circle cx="334" cy="114" r="3.4"/>
+        <circle cx="366" cy="114" r="3.4"/><circle cx="400" cy="114" r="3.4"/><circle cx="434" cy="114" r="3.4"/>
+        <circle cx="466" cy="114" r="3.4"/><circle cx="498" cy="114" r="3.4"/><circle cx="530" cy="114" r="3.4"/>
+      </g>
+      <text x="400" y="142" text-anchor="middle" font-size="26" font-weight="bold" letter-spacing="4"
+        font-family="Chalkboard SE, Comic Sans MS, sans-serif" fill="#ffd166">THE SINCLAIR</text>
+      <text x="400" y="157" text-anchor="middle" font-size="11" font-weight="bold" letter-spacing="3"
+        font-family="Chalkboard SE, Comic Sans MS, sans-serif" fill="#ff8fb8">TONIGHT: GREG</text>
+      <g class="soldout">
+        <rect x="-56" y="-16" width="112" height="32" rx="6" fill="#d9483b"/>
+        <text x="0" y="7" text-anchor="middle" font-size="18" font-weight="bold" letter-spacing="2"
+          font-family="Chalkboard SE, Comic Sans MS, sans-serif" fill="#fff">SOLD OUT</text>
+      </g>
+    </g>
+    <path class="sweep sw1" d="M 120,100 L 160,100 L 460,460 L 300,460 Z"/>
+    <path class="sweep sw2" d="M 640,100 L 680,100 L 500,460 L 340,460 Z"/>
+    <path d="M 0,500 L 0,450 L 800,450 L 800,500 Z" fill="#3a2418"/>
+    <g class="greg drumming happy" style="--beat: 0.3s"></g>
+    <!-- the crowd, packed in down the front -->
+    <g class="crowd">
+      <g class="fan f1"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f2"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f3"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f4"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f5"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f6"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f7"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f8"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f9"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f10"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+      <g class="fan f11"><use class="arm" href="#fan-arm"/><use href="#fan-proto"/></g>
+    </g>
+    <use href="#heart-proto" class="cb-heart h1"/>
+    <use href="#heart-proto" class="cb-heart h2"/>
+    <use href="#heart-proto" class="cb-heart h3"/>
+    <use href="#star-proto" class="cb-star s1"/>
+    <use href="#star-proto" class="cb-star s2"/>
+  </svg>
+
+  <!-- Greg eats a lot of cereal (the bowl perched on his kick drum) -->
+  <svg id="scene-cereal" class="scene" viewBox="0 100 800 400" hidden>
+    <rect x="0" y="100" width="800" height="400" fill="url(#wall-grad)"/>
+    <ellipse cx="400" cy="300" rx="320" ry="210" fill="url(#spot-grad)" opacity="0.6"/>
+    <path class="floor" d="M 0,500 L 0,462 L 800,462 L 800,500 Z"/>
+    <ellipse cx="400" cy="474" rx="200" ry="18" fill="#6b2a3a"/>
+    <use href="#cereal-box" transform="translate(650, 462) rotate(4)"/>
+    <use href="#cereal-box" transform="translate(150, 462) rotate(-5) scale(0.9)"/>
+    <g class="greg drumming munchy" style="--beat: 0.5s"></g>
+    <use href="#bowl-proto" class="bowl"/>
+    <use href="#cereal-o" class="cb-o o1"/>
+    <use href="#cereal-o" class="cb-o o2"/>
+    <use href="#cereal-o" class="cb-o o3"/>
+    <use href="#cereal-o" class="cb-o o4"/>
+    <use href="#cereal-o" class="cb-o o5"/>
+    <use href="#cereal-o" class="cb-o o6"/>
+    <use href="#heart-proto" class="cb-heart h1"/>
+    <use href="#heart-proto" class="cb-heart h2"/>
+  </svg>
+</div>
+
+<script src="words.js"></script>
+<script src="../../engine/rules.js"></script>
+<script src="../../engine/fx.js"></script>
+<script src="../../engine/engine.js"></script>
+<script src="theme.js"></script>
+</body>
+</html>

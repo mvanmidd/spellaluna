@@ -30,6 +30,7 @@ Pin these down first; everything else follows:
 - **The happy animations**: 3–5 short scenes, ~6 seconds each.
 - **The finale**: one bigger scene, ~8 seconds, for every Nth word.
 - **The word list**: 15–25 words, a mix of lengths, all uppercase A–Z, 2–16 letters.
+  A hyphen is allowed inside a word (HI-HAT); it's typed with the minus key.
 
 Then pick how rewards are chosen: `pick: 'cycle'` walks the pool in order (Spellaluna),
 `pick: 'random'` draws at random and never repeats back to back (Spellasaurus). A

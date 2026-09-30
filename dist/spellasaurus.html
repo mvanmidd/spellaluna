@@ -1308,9 +1308,11 @@ body {
    */
   function inputLetter(game, raw) {
     const letter = String(raw || '').toUpperCase();
-    if (!/^[A-Z]$/.test(letter)) return { type: 'ignored' };
-
     const word = getCurrentWord(game);
+    // a hyphen is typeable only in words that have one (HI-HAT); elsewhere it's ignored
+    const typeable = /^[A-Z]$/.test(letter) || (letter === '-' && word.includes('-'));
+    if (!typeable) return { type: 'ignored' };
+
     const expected = word[game.letterIndex];
     if (letter !== expected) {
       return { type: 'incorrect', letter, expected };
@@ -1683,7 +1685,7 @@ body {
   function handleCorrect(ev) {
     const tileEl = el.tiles.children[ev.index];
     tileEl.classList.add('done');
-    fx.sayWord(ev.letter);
+    fx.sayWord(ev.letter === '-' ? 'hyphen' : ev.letter);
     if (theme.onCorrect) theme.onCorrect({ tileEl, index: ev.index, letter: ev.letter });
   }
 
@@ -1774,7 +1776,7 @@ body {
 
   function confirmAddWord() {
     const word = el.addWordInput.value.trim().toUpperCase();
-    if (!word || !/^[A-Z]+$/.test(word)) {
+    if (!word || !/^[A-Z]+(-[A-Z]+)*$/.test(word)) {
       el.addWordError.textContent = 'Only letters please!';
       el.addWordError.hidden = false;
       return;

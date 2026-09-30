@@ -64,7 +64,7 @@ async function shot(name) {
 }
 
 async function press(key) {
-  const code = /^[a-z]$/i.test(key) ? 'Key' + key.toUpperCase() : key;
+  const code = /^[a-z]$/i.test(key) ? 'Key' + key.toUpperCase() : key === '-' ? 'Minus' : key;
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code });
 }
@@ -102,7 +102,7 @@ await press('x');
 await sleep(700);
 let word = await currentWord();
 console.log('word 1:', word);
-if (!/^[A-Z]{2,20}$/.test(word)) throw new Error('no word rendered: ' + JSON.stringify(word));
+if (!/^[A-Z-]{2,20}$/.test(word)) throw new Error('no word rendered: ' + JSON.stringify(word));
 await shot('02-word');
 
 // one correct letter — catch the treat mid-flight
