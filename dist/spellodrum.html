@@ -336,8 +336,8 @@ body {
 
 /* ---------- main scene ---------- */
 
-/* Edge to edge: "slice" crops ~58 viewBox units off the top on a wide window, so
-   nothing important lives above y ≈ 60 (the light rig hangs at 64). */
+/* Edge to edge. The svg uses "meet", so the whole viewBox always shows and the
+   scenery drawn past its edges fills the rest (see the note in index.html). */
 #scene {
   display: block;
   width: 100vw;
@@ -355,6 +355,8 @@ body {
 #scene .bm2 { transform-origin: 400px 80px; animation-delay: -1.2s; animation-duration: 6s; }
 #scene .bm3 { transform-origin: 600px 80px; animation-delay: -2.6s; }
 #scene .bm4 { transform-origin: 800px 80px; animation-delay: -0.6s; animation-duration: 4.4s; }
+#scene .bm5 { transform-origin: 0px 80px; animation-delay: -3.1s; }
+#scene .bm6 { transform-origin: 1000px 80px; animation-delay: -1.9s; animation-duration: 5.6s; }
 @keyframes beam-sway {
   from { transform: rotate(-9deg); }
   to   { transform: rotate(9deg); }
@@ -1265,31 +1267,42 @@ body {
 <div id="app">
 
   <!-- ======= main scene: Greg on stage ======= -->
-  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-    <rect x="-20" y="-40" width="1040" height="460" fill="url(#wall-grad)"/>
+  <!-- "meet", not "slice": Greg's hair reaches y = 60, so cropping the top on a wide, short
+       window cut his head off. The whole viewBox is always shown; the wall, floor and
+       lighting rig run far past it on every side to fill whatever space is left over. -->
+  <svg id="scene" viewBox="0 0 1000 400" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+    <rect x="-2000" y="-1500" width="5000" height="1460" fill="#1b0f2e"/>
+    <rect x="-2000" y="-40" width="5000" height="460" fill="url(#wall-grad)"/>
 
     <!-- the lighting rig, and the coloured beams it throws -->
-    <path d="M -20,64 L 1020,64" stroke="#3a3144" stroke-width="6"/>
+    <path d="M -2000,64 L 3000,64" stroke="#3a3144" stroke-width="6"/>
     <g class="beams">
       <path class="beam bm1" d="M 200,80 L 110,380 L 300,380 Z" style="--c:#ff4fa3"/>
       <path class="beam bm2" d="M 400,80 L 340,380 L 520,380 Z" style="--c:#4fd1ff"/>
       <path class="beam bm3" d="M 600,80 L 490,380 L 680,380 Z" style="--c:#ffd166"/>
       <path class="beam bm4" d="M 800,80 L 700,380 L 900,380 Z" style="--c:#9b7bff"/>
+      <path class="beam bm5" d="M 0,80 L -90,380 L 100,380 Z" style="--c:#4fd1ff"/>
+      <path class="beam bm6" d="M 1000,80 L 900,380 L 1100,380 Z" style="--c:#ff4fa3"/>
     </g>
+    <use href="#light-proto" transform="translate(0, 66)" style="--lamp:#4fd1ff"/>
+    <use href="#light-proto" transform="translate(1000, 66)" style="--lamp:#ff4fa3"/>
     <use href="#light-proto" transform="translate(200, 66)" style="--lamp:#ff4fa3"/>
     <use href="#light-proto" transform="translate(400, 66)" style="--lamp:#4fd1ff"/>
     <use href="#light-proto" transform="translate(600, 66)" style="--lamp:#ffd166"/>
     <use href="#light-proto" transform="translate(800, 66)" style="--lamp:#9b7bff"/>
 
     <!-- stage floor and the drum rug -->
-    <path d="M -20,400 L -20,356 L 1020,356 L 1020,400 Z" fill="#3a2418"/>
-    <g stroke="#2a1a10" stroke-width="2"><path d="M -20,370 L 1020,370 M -20,386 L 1020,386"/></g>
+    <path d="M -2000,420 L -2000,356 L 3000,356 L 3000,420 Z" fill="#3a2418"/>
+    <g stroke="#2a1a10" stroke-width="2"><path d="M -2000,370 L 3000,370 M -2000,386 L 3000,386"/></g>
     <ellipse cx="500" cy="374" rx="190" ry="20" fill="#6b2a3a"/>
     <ellipse cx="500" cy="374" rx="170" ry="14" fill="none" stroke="#c9a24a" stroke-width="2.4" stroke-dasharray="8 6"/>
 
     <use href="#amp-proto" transform="translate(150, 362) scale(1.1)"/>
     <use href="#amp-proto" transform="translate(150, 226) scale(0.9, 0.5)"/>
     <use href="#amp-proto" transform="translate(860, 362) scale(1.1)"/>
+    <use href="#amp-proto" transform="translate(1140, 362) scale(1.1)"/>
+    <use href="#amp-proto" transform="translate(1140, 226) scale(0.9, 0.5)"/>
+    <use href="#amp-proto" transform="translate(-140, 362) scale(1.1)"/>
     <use href="#mic-proto" transform="translate(280, 362)"/>
     <use href="#mic-proto" transform="translate(740, 362) scale(-1, 1)"/>
 
